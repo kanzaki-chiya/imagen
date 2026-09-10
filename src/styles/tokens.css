@@ -1,0 +1,80 @@
+:root,
+:root[data-theme="light"] {
+  --app: #f5f5f3;
+  --sidebar: #eeefec;
+  --panel: #f9faf7;
+  --panel-raised: #fdfdfb;
+  --canvas: #e8eae6;
+  --canvas-dot: #ced2cb;
+  --input: #f1f2ee;
+  --border: #dfe2da;
+  --border-strong: #c9cfc3;
+  --text: #292e27;
+  --text-secondary: #687062;
+  --text-muted: #7c8476;
+  --hover: #e7eae2;
+  --active: #e1e6d9;
+  --accent: #cc5527;
+  --accent-hover: #b9481f;
+  --accent-soft: #f8e9df;
+  --accent-foreground: #fff9f3;
+  --success: #44765a;
+  --success-soft: #e7efe6;
+  --danger: #b64037;
+  --danger-soft: #f8e8e4;
+  --warning: #976825;
+  --warning-soft: #f3edde;
+  --disabled: #e8eae4;
+  --disabled-text: #989e91;
+  --tooltip: #343b30;
+  --tooltip-text: #f8faf4;
+  --overlay: #22292070;
+  --skeleton: #dfe3da;
+  --skeleton-shine: #eef0e9;
+  --image-shadow: 0 10px 32px #26371e12, 0 1px 4px #26371e14;
+  --popover-shadow: 0 8px 30px #222e2017, 0 1px 3px #222e2010;
+  --modal-shadow: 0 24px 90px #202b2633;
+  --radius: 6px;
+  --font-ui:
+    "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --font-display: "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+}
+
+:root[data-theme="dark"] {
+  --app: #252727;
+  --sidebar: #212322;
+  --panel: #2b2e2c;
+  --panel-raised: #323633;
+  --canvas: #202321;
+  --canvas-dot: #363c37;
+  --input: #252925;
+  --border: #3b413c;
+  --border-strong: #4f584f;
+  --text: #e9ede6;
+  --text-secondary: #abb3a7;
+  --text-muted: #959f90;
+  --hover: #363d35;
+  --active: #414b3d;
+  --accent: #ee8b55;
+  --accent-hover: #f49c6b;
+  --accent-soft: #483529;
+  --accent-foreground: #25241d;
+  --success: #91ba97;
+  --success-soft: #2f4132;
+  --danger: #ed9a8f;
+  --danger-soft: #4b302c;
+  --warning: #d6b276;
+  --warning-soft: #403b2c;
+  --disabled: #30352c;
+  --disabled-text: #737d6b;
+  --tooltip: #e1e7d8;
+  --tooltip-text: #262e20;
+  --overlay: #12170ed1;
+  --skeleton: #333b2d;
+  --skeleton-shine: #424b3b;
+  --image-shadow: 0 10px 36px #00000030, 0 1px 4px #00000020;
+  --popover-shadow: 0 8px 35px #00000038, 0 0 0 1px #434b38;
+  --modal-shadow: 0 24px 100px #00000066;
+}
