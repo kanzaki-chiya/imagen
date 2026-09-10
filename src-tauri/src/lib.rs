@@ -1,7 +1,7 @@
 mod db;
-mod error;
+pub mod error;
 mod keys;
-mod openai;
+pub mod openai;
 
 use std::collections::HashMap;
 use std::path::PathBuf;

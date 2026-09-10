@@ -17,6 +17,7 @@ npm run dev
 npm run build   # TypeScript 检查与生产构建
 npm run preview # 预览生产构建
 npm test        # 参数与 Mock 服务校验
+cd src-tauri && cargo test  # 本地模拟 Provider 端到端校验（成功/限流/错误/损坏图片）
 ```
 
 ## 桌面应用（Tauri 2 + Rust）
@@ -45,6 +46,9 @@ npm run desktop   # 等价于 npx tauri dev，自动先启动 Vite
 - **Settings**：编辑 OpenAI、OpenAI Compatible、Gemini 和 Custom Provider，支持自定义模型与模拟连接测试。API Key 只在当前会话内存中保留，不写入持久存储。
 - **主题**：顶部随时切换 Light / Dark / System，默认跟随系统。
 - **语言**：Settings → Appearance 切换 中文 / English，默认中文，选择会保存在 localStorage。
+- **任务**：生成中再次生成会进入队列（并发 1，上限 8）；Settings → 任务查看状态或取消，重启后未完成任务标记为「已中断」。
+- **本地数据**：桌面端保存在应用数据目录 `imagen.db`（SQLite）；API Key 存系统凭据管理器，不落盘。浏览器端仍在 IndexedDB。
+- **文件**：桌面端历史详情可「打开所在文件夹」，下载走原生另存为对话框。
 - **快捷键**：`Ctrl + Alt + 1/2/3/4` 切换工作区，`?` 查看快捷键。
 
 ## Mock 模式
@@ -53,7 +57,7 @@ npm run desktop   # 等价于 npx tauri dev，自动先启动 Vite
 
 在 **Settings → Workspace → Simulate a failed generation** 中，可以让下一次生成模拟超时。重试随后正常完成。在 Provider Base URL 中加入 `fail` 可测试连接失败状态。
 
-历史、预设、参考图和非敏感配置保存在当前浏览器 / WebView 的 IndexedDB；主题偏好保存在 localStorage。清理站点数据会移除这些内容。存储不可用时会显示提示，当前会话仍可使用。
+桌面端数据在应用数据目录（`imagen.db` SQLite + `images/` + `thumbs/`）；API Key 在系统凭据存储。浏览器端为 IndexedDB，首次启动桌面端会自动迁移。主题偏好保存在 localStorage。清理站点数据会移除浏览器内容。存储不可用时会显示提示，当前会话仍可使用。
 
 ## 桌面与部署
 

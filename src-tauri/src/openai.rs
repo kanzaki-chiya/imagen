@@ -313,6 +313,19 @@ pub async fn generate(
     request: &GenerationRequest,
     written: Arc<Mutex<Vec<PathBuf>>>,
 ) -> Result<Vec<GeneratedImage>, BackendError> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| BackendError::new(ErrorKind::Config, error.to_string()))?
+        .join("images");
+    generate_inner(request, dir, written).await
+}
+
+pub async fn generate_inner(
+    request: &GenerationRequest,
+    dir: PathBuf,
+    written: Arc<Mutex<Vec<PathBuf>>>,
+) -> Result<Vec<GeneratedImage>, BackendError> {
     let api_key = resolve_api_key(&request.provider_id, &request.api_key)?;
     if request.prompt.trim().is_empty() {
         return Err(BackendError::new(
@@ -380,11 +393,6 @@ pub async fn generate(
             "The provider returned no images.",
         ));
     }
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| BackendError::new(ErrorKind::Config, error.to_string()))?
-        .join("images");
     tokio::fs::create_dir_all(&dir).await.map_err(|error| {
         BackendError::new(
             ErrorKind::Server,
