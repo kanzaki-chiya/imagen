@@ -98,6 +98,9 @@ function addStyle(prompt: string, style: string) {
         {{ negativeTab ? "2,000" : "4,000" }}</span
       >
     </div>
+    <p v-if="negativeTab && live" class="composer-note">
+      {{ t("composer.negativeHint") }}
+    </p>
     <div v-if="error" class="generation-error" role="alert">
       <AlertCircle :size="14" /><span>{{ error }}</span
       ><button class="btn btn-ghost" @click="emit('retry')">
@@ -233,6 +236,11 @@ function addStyle(prompt: string, style: string) {
   color: var(--text-muted);
   font-size: 8px;
   pointer-events: none;
+}
+.composer-note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 .prompt-actions {
   display: flex;

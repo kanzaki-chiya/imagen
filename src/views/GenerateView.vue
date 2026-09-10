@@ -2,7 +2,11 @@
 import { computed, shallowRef } from "vue";
 import { useStudio } from "../composables/useStudio";
 import { exportImage } from "../services/exportImage";
-import { usingDesktopBackend } from "../services/backend";
+import {
+  backendAvailable,
+  exportImageTo,
+  usingDesktopBackend,
+} from "../services/backend";
 import { useI18n } from "../i18n";
 import type { ImageResult } from "../types";
 import ImageCanvas from "../components/generate/ImageCanvas.vue";
@@ -18,6 +22,16 @@ const live = computed(() => usingDesktopBackend(state.preferMock));
 const savingPreset = shallowRef(false);
 async function download(image: ImageResult) {
   try {
+    if (image.path && backendAvailable()) {
+      const extension = image.path.split(".").pop() ?? "png";
+      const title = (image.title || "imagen").replace(/[\\/:*?"<>|]/g, "-");
+      const target = await exportImageTo(
+        image.path,
+        `${title.slice(0, 60)}-${image.id.slice(0, 8)}.${extension}`,
+      );
+      if (target) studio.notify(t("toast.exported", { path: target }));
+      return;
+    }
     await exportImage(image);
     studio.notify(t("toast.downloadRequested"));
   } catch {

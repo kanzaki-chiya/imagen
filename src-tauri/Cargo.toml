@@ -34,3 +34,4 @@ image = { version = "0.25", default-features = false, features = [
     "jpeg",
     "webp",
 ] }
+rfd = "0.15"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RotateCcw, Star, Download, Copy } from "lucide-vue-next";
+import { RotateCcw, Star, Download, Copy, FolderOpen } from "lucide-vue-next";
 import type { ImageResult } from "../../types";
 import BaseDialog from "../ui/BaseDialog.vue";
 import ResultImage from "../ui/ResultImage.vue";
@@ -11,6 +11,7 @@ const emit = defineEmits<{
   reuse: [image: ImageResult];
   favorite: [id: string];
   download: [image: ImageResult];
+  openFolder: [image: ImageResult];
   copy: [text: string];
 }>();
 </script>
@@ -89,6 +90,12 @@ const emit = defineEmits<{
         }}</button
       ><button class="btn" @click="emit('download', image)">
         <Download :size="15" />{{ t("history.detail.download") }}</button
+      ><button
+        v-if="image.path"
+        class="btn"
+        @click="emit('openFolder', image)"
+      >
+        <FolderOpen :size="15" />{{ t("history.detail.openFolder") }}</button
       ><button class="btn btn-primary" @click="emit('reuse', image)">
         <RotateCcw :size="15" />{{ t("history.detail.reuse") }}
       </button></template

@@ -205,6 +205,61 @@ async fn workspace_import(
         .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
 }
 
+/// Opens Explorer with the image file selected.
+#[tauri::command]
+fn open_in_folder(path: String) -> Result<(), BackendError> {
+    let target = PathBuf::from(&path);
+    if !target.exists() {
+        return Err(BackendError::new(
+            ErrorKind::Config,
+            "The image file no longer exists.",
+        ));
+    }
+    std::process::Command::new("explorer.exe")
+        .arg(format!("/select,{}", target.to_string_lossy()))
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| {
+            BackendError::new(
+                ErrorKind::Server,
+                format!("Could not open the folder: {error}"),
+            )
+        })
+}
+
+/// Native save-as dialog; copies the image to the chosen location.
+#[tauri::command]
+async fn export_image(
+    path: String,
+    suggested_name: String,
+) -> Result<Option<String>, BackendError> {
+    blocking(move || {
+        let source = PathBuf::from(&path);
+        if !source.exists() {
+            return Err(BackendError::new(
+                ErrorKind::Config,
+                "The image file no longer exists.",
+            ));
+        }
+        let target = rfd::FileDialog::new()
+            .set_file_name(&suggested_name)
+            .save_file();
+        match target {
+            Some(target) => std::fs::copy(&source, &target)
+                .map(|_| Some(target.to_string_lossy().into_owned()))
+                .map_err(|error| {
+                    BackendError::new(
+                        ErrorKind::Server,
+                        format!("Could not export the image: {error}"),
+                    )
+                }),
+            None => Ok(None),
+        }
+    })
+    .await
+    .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
 #[tauri::command]
 fn store_api_key(provider_id: String, key: String) -> Result<(), BackendError> {
     keys::store(&provider_id, &key)
@@ -247,6 +302,8 @@ pub fn run() {
             tasks_list,
             tasks_upsert,
             workspace_import,
+            open_in_folder,
+            export_image,
             store_api_key,
             delete_api_key,
             has_api_key,

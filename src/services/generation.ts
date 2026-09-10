@@ -1,5 +1,43 @@
-import type { AspectRatio, GenerationParams } from "../types.ts";
+import type { AspectRatio, GenerationParams, Provider } from "../types.ts";
 import { t } from "../i18n/index.ts";
+
+export interface ProviderCapabilities {
+  seed: boolean;
+  guidance: boolean;
+  negativePrompt: boolean;
+  references: boolean;
+  resolutions: GenerationParams["resolution"][];
+  maxCount: number;
+}
+
+/**
+ * Parameters each provider protocol actually sends today.
+ * OpenAI Images API (and compatible endpoints) ignore seed/guidance/
+ * negative prompt/references — they are recorded in history only.
+ * 4K is produced by client-side upscale metadata, not the API.
+ */
+export function capabilitiesFor(provider: Provider): ProviderCapabilities {
+  switch (provider.kind) {
+    case "gemini":
+      return {
+        seed: false,
+        guidance: false,
+        negativePrompt: false,
+        references: false,
+        resolutions: ["1K", "2K", "4K"],
+        maxCount: 4,
+      };
+    default:
+      return {
+        seed: false,
+        guidance: false,
+        negativePrompt: false,
+        references: false,
+        resolutions: ["1K", "2K", "4K"],
+        maxCount: 4,
+      };
+  }
+}
 
 export function dimensions(
   aspect: AspectRatio,

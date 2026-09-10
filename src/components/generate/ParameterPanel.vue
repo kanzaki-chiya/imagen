@@ -23,7 +23,7 @@ import type {
   Provider,
   ReferenceImage,
 } from "../../types";
-import { dimensions } from "../../services/generation";
+import { capabilitiesFor, dimensions } from "../../services/generation";
 import ReferenceImages from "./ReferenceImages.vue";
 import { useI18n } from "../../i18n";
 const props = defineProps<{
@@ -89,6 +89,7 @@ const provider = computed(
     props.providers.find((item) => item.id === props.params.providerId) ??
     props.providers[0],
 );
+const caps = computed(() => capabilitiesFor(provider.value));
 const size = computed(() =>
   dimensions(props.params.aspectRatio, props.params.resolution),
 );
@@ -180,6 +181,9 @@ function value(event: Event) {
                 : t("params.modelNote.other")
           }}</span></label
         >
+        <p v-if="live" class="field-hint capability-note">
+          {{ t("params.capabilityNote") }}
+        </p>
       </section>
       <section class="parameter-section image-settings">
         <div class="field">
@@ -274,6 +278,7 @@ function value(event: Event) {
       <section class="parameter-section">
         <ReferenceImages
           :images="references"
+          :unsupported="live && !caps.references"
           @add="emit('addReference', $event)"
           @remove="emit('removeReference', $event)"
           @strength="(id, strength) => emit('referenceStrength', id, strength)"
@@ -295,8 +300,13 @@ function value(event: Event) {
               ><label for="generation-seed">{{ t("params.seed") }}</label
               ><button
                 class="icon-btn"
+                :disabled="live && !caps.seed"
                 :aria-label="t('params.seedRandom')"
-                :data-tip="t('params.seedRandom')"
+                :data-tip="
+                  live && !caps.seed
+                    ? t('params.unsupported')
+                    : t('params.seedRandom')
+                "
                 @click.prevent="
                   emit('update', {
                     seed: String(Math.floor(Math.random() * 4294967295)),
@@ -308,6 +318,8 @@ function value(event: Event) {
               id="generation-seed"
               :value="params.seed"
               inputmode="numeric"
+              :disabled="live && !caps.seed"
+              :data-tip="live && !caps.seed ? t('params.unsupported') : undefined"
               :placeholder="t('params.seedPlaceholder')"
               maxlength="10"
               @input="emit('update', { seed: value($event) })"
@@ -323,10 +335,16 @@ function value(event: Event) {
               min="1"
               max="20"
               step="0.5"
+              :disabled="live && !caps.guidance"
+              :data-tip="
+                live && !caps.guidance ? t('params.unsupported') : undefined
+              "
               :aria-label="t('params.guidance')"
               @input="emit('update', { guidance: Number(value($event)) })"
             /><span class="field-hint">{{
-              t("params.guidanceHint")
+              live && !caps.guidance
+                ? t("params.unsupportedRecorded")
+                : t("params.guidanceHint")
             }}</span></label
           >
           <label class="field"
@@ -523,6 +541,9 @@ function value(event: Event) {
   flex-direction: column;
   gap: 15px;
   padding: 0 20px 20px;
+}
+.capability-note {
+  margin-top: 10px;
 }
 .parameter-footnote {
   padding: 8px 20px 22px;

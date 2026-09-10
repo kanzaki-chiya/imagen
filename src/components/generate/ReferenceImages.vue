@@ -3,7 +3,7 @@ import { shallowRef, useTemplateRef } from "vue";
 import { ImagePlus, Plus, X } from "lucide-vue-next";
 import type { ReferenceImage } from "../../types";
 import { useI18n } from "../../i18n";
-defineProps<{ images: ReferenceImage[] }>();
+defineProps<{ images: ReferenceImage[]; unsupported?: boolean }>();
 const { t } = useI18n();
 const emit = defineEmits<{
   add: [files: File[]];
@@ -41,8 +41,9 @@ function drop(event: DragEvent) {
       :aria-label="t('refs.uploadAria')"
       @change="change"
     />
+    <p v-if="unsupported" class="field-hint">{{ t("refs.unsupported") }}</p>
     <button
-      v-if="!images.length"
+      v-else-if="!images.length"
       class="drop-zone"
       :class="{ dragging }"
       @click="fileInput?.click()"
@@ -55,7 +56,7 @@ function drop(event: DragEvent) {
         >{{ t("refs.drop") }} <strong>{{ t("refs.browse") }}</strong></span
       ><small>{{ t("refs.formats") }}</small>
     </button>
-    <template v-else>
+    <template v-if="images.length">
       <div class="reference-grid" @dragover.prevent @drop.prevent="drop">
         <div
           v-for="reference in images"
@@ -71,7 +72,7 @@ function drop(event: DragEvent) {
           </button>
         </div>
         <button
-          v-if="images.length < 3"
+          v-if="images.length < 3 && !unsupported"
           class="add-reference"
           :aria-label="t('refs.addAnother')"
           @click="fileInput?.click()"
@@ -89,6 +90,7 @@ function drop(event: DragEvent) {
           min="0"
           max="100"
           :value="reference.strength"
+          :disabled="unsupported"
           :aria-label="t('refs.strength', { name: reference.name })"
           @input="
             emit(

@@ -178,6 +178,18 @@ export function cancelDesktopGeneration(requestId: string) {
   void invoke("cancel_generation", { requestId }).catch(() => {});
 }
 
+export function openInFolder(path: string): Promise<void> {
+  return invoke("open_in_folder", { path });
+}
+
+/** Native save-as dialog; resolves to the target path or null when cancelled. */
+export function exportImageTo(
+  path: string,
+  suggestedName: string,
+): Promise<string | null> {
+  return invoke<string | null>("export_image", { path, suggestedName });
+}
+
 export function testProviderConnection(provider: {
   baseUrl: string;
   apiKey: string;

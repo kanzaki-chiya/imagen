@@ -3,6 +3,11 @@ import { computed, shallowRef } from "vue";
 import { useStudio } from "../composables/useStudio";
 import type { ImageResult } from "../types";
 import { exportImage } from "../services/exportImage";
+import {
+  backendAvailable,
+  exportImageTo,
+  openInFolder,
+} from "../services/backend";
 import { useI18n } from "../i18n";
 const { t } = useI18n();
 import HistoryToolbar from "../components/history/HistoryToolbar.vue";
@@ -61,12 +66,30 @@ function reset() {
   favorites.value = false;
   model.value = "all";
 }
+function suggestedName(image: ImageResult): string {
+  const extension = image.path?.split(".").pop() ?? "png";
+  const title = (image.title || "imagen").replace(/[\\/:*?"<>|]/g, "-");
+  return `${title.slice(0, 60)}-${image.id.slice(0, 8)}.${extension}`;
+}
 async function download(image: ImageResult) {
   try {
+    if (image.path && backendAvailable()) {
+      const target = await exportImageTo(image.path, suggestedName(image));
+      if (target) studio.notify(t("toast.exported", { path: target }));
+      return;
+    }
     await exportImage(image);
     studio.notify(t("toast.downloadRequested"));
   } catch {
     studio.notify(t("toast.exportFail"), "error");
+  }
+}
+async function openFolder(image: ImageResult) {
+  if (!image.path) return;
+  try {
+    await openInFolder(image.path);
+  } catch {
+    studio.notify(t("toast.folderFail"), "error");
   }
 }
 async function copy(text: string) {
@@ -118,6 +141,7 @@ async function copy(text: string) {
       @reuse="studio.reuseImage"
       @favorite="studio.toggleFavorite"
       @download="download"
+      @open-folder="openFolder"
       @copy="copy"
     />
   </div>
