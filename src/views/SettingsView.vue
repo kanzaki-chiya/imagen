@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Sparkles,
+  ListTodo,
 } from "lucide-vue-next";
 import { useStudio } from "../composables/useStudio";
 import { backendAvailable } from "../services/backend";
@@ -17,6 +18,7 @@ import type { Locale } from "../i18n";
 import { useI18n } from "../i18n";
 import type { Theme } from "../types";
 import ProviderSettings from "../components/settings/ProviderSettings.vue";
+import TaskList from "../components/settings/TaskList.vue";
 import ThemeSwitcher from "../components/ui/ThemeSwitcher.vue";
 import BrandMark from "../components/ui/BrandMark.vue";
 defineProps<{ theme: Theme }>();
@@ -33,6 +35,7 @@ const sections = [
   { id: "providers", icon: PlugZap },
   { id: "appearance", icon: Palette },
   { id: "workspace", icon: HardDrive },
+  { id: "tasks", icon: ListTodo },
   { id: "about", icon: Info },
 ];
 </script>
@@ -223,6 +226,7 @@ const sections = [
             </button>
           </div>
         </section>
+        <TaskList v-else-if="section === 'tasks'" />
         <section v-else class="settings-section about-section">
           <BrandMark :size="48" />
           <h2>imagen.</h2>

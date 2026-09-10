@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { backendAvailable } from "./backend";
-import type { ImageResult, StoredWorkspace } from "../types";
+import type { GenerationTask, ImageResult, StoredWorkspace } from "../types";
 
 const databaseName = "imagen-workspace";
 const MIGRATION_KEY = "imagen:migrated-idb";
@@ -103,4 +103,14 @@ export async function storeApiKey(
 export async function deleteApiKey(providerId: string): Promise<void> {
   if (!desktop) return;
   await invoke("delete_api_key", { providerId });
+}
+
+export async function listTasks(): Promise<GenerationTask[]> {
+  if (!desktop) return [];
+  return invoke<GenerationTask[]>("tasks_list");
+}
+
+export async function upsertTask(task: GenerationTask): Promise<void> {
+  if (!desktop) return;
+  await invoke("tasks_upsert", { task });
 }

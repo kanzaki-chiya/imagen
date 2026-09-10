@@ -20,6 +20,9 @@ const { state, provider } = studio;
 const { preference, setTheme } = useTheme();
 const { t } = useI18n();
 const live = computed(() => usingDesktopBackend(state.preferMock));
+const queuedCount = computed(
+  () => state.tasks.filter((task) => task.status === "pending").length,
+);
 const showShortcuts = shallowRef(false);
 const drawerOpen = shallowRef(false);
 useWorkspaceNavigation({
@@ -106,7 +109,10 @@ const shortcutCombos = [
           @click="studio.navigate('generate')"
         >
           {{ t("status.viewTask") }}<ChevronRight :size="10" />
-        </button>
+        </button
+        ><span v-if="queuedCount" class="statusbar-queue">{{
+          t("status.queued", { n: queuedCount })
+        }}</span>
       </div>
       <div class="statusbar-right">
         <span>{{ provider.name }}</span
@@ -190,6 +196,10 @@ const shortcutCombos = [
   display: inline-flex;
   align-items: center;
   color: var(--accent);
+  font-size: 9px;
+}
+.statusbar-queue {
+  color: var(--text-muted);
   font-size: 9px;
 }
 .statusbar-right {

@@ -51,6 +51,20 @@ CREATE TABLE IF NOT EXISTS presets (
     params TEXT NOT NULL DEFAULT '{}',
     image TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    provider_id TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    prompt TEXT NOT NULL DEFAULT '',
+    params TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error_kind TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL DEFAULT '',
+    finished_at TEXT,
+    result_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS tasks_created ON tasks (created_at DESC);
 ";
 
 fn db_error(error: impl std::fmt::Display) -> BackendError {
@@ -465,6 +479,100 @@ impl Database {
         conn.execute("DELETE FROM presets WHERE id = ?1", params![id])
             .map(|_| ())
             .map_err(db_error)
+    }
+
+    pub fn upsert_task(&self, task: &Value) -> Result<(), BackendError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO tasks
+             (id, provider_id, model, prompt, params, status, error_kind,
+              error_message, created_at, finished_at, result_count)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT(id) DO UPDATE SET
+                provider_id = excluded.provider_id,
+                model = excluded.model,
+                prompt = excluded.prompt,
+                params = excluded.params,
+                status = excluded.status,
+                error_kind = excluded.error_kind,
+                error_message = excluded.error_message,
+                created_at = excluded.created_at,
+                finished_at = excluded.finished_at,
+                result_count = excluded.result_count",
+            params![
+                task.get("id").and_then(Value::as_str).unwrap_or(""),
+                task.get("providerId").and_then(Value::as_str).unwrap_or(""),
+                task.get("model").and_then(Value::as_str).unwrap_or(""),
+                task.get("prompt").and_then(Value::as_str).unwrap_or(""),
+                task.get("params")
+                    .map(|value| serde_json::to_string(value).unwrap_or_default())
+                    .unwrap_or_else(|| "{}".into()),
+                task.get("status").and_then(Value::as_str).unwrap_or("pending"),
+                task.get("errorKind").and_then(Value::as_str),
+                task.get("errorMessage").and_then(Value::as_str),
+                task.get("createdAt").and_then(Value::as_str).unwrap_or(""),
+                task.get("finishedAt").and_then(Value::as_str),
+                task.get("resultCount").and_then(Value::as_i64).unwrap_or(0),
+            ],
+        )
+        .map_err(db_error)?;
+        // Keep the table bounded to the newest 500 tasks.
+        conn.execute(
+            "DELETE FROM tasks WHERE id NOT IN
+             (SELECT id FROM tasks ORDER BY created_at DESC LIMIT 500)",
+            [],
+        )
+        .map_err(db_error)?;
+        Ok(())
+    }
+
+    pub fn list_tasks(&self) -> Result<Value, BackendError> {
+        let conn = self.conn.lock().unwrap();
+        let mut statement = conn
+            .prepare(
+                "SELECT id, provider_id, model, prompt, params, status,
+                        error_kind, error_message, created_at, finished_at,
+                        result_count
+                 FROM tasks ORDER BY created_at DESC LIMIT 100",
+            )
+            .map_err(db_error)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(json!({
+                    "id": row.get::<_, String>(0)?,
+                    "providerId": row.get::<_, String>(1)?,
+                    "model": row.get::<_, String>(2)?,
+                    "prompt": row.get::<_, String>(3)?,
+                    "params": serde_json::from_str::<Value>(
+                        &row.get::<_, String>(4)?
+                    )
+                    .unwrap_or_else(|_| json!({})),
+                    "status": row.get::<_, String>(5)?,
+                    "errorKind": row.get::<_, Option<String>>(6)?,
+                    "errorMessage": row.get::<_, Option<String>>(7)?,
+                    "createdAt": row.get::<_, String>(8)?,
+                    "finishedAt": row.get::<_, Option<String>>(9)?,
+                    "resultCount": row.get::<_, i64>(10)?,
+                }))
+            })
+            .map_err(db_error)?;
+        let mut tasks = Vec::new();
+        for row in rows {
+            tasks.push(row.map_err(db_error)?);
+        }
+        Ok(Value::Array(tasks))
+    }
+
+    /// Tasks left pending/running when the app quit are marked interrupted.
+    pub fn mark_stale_tasks(&self) -> Result<(), BackendError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE tasks SET status = 'interrupted'
+             WHERE status IN ('pending', 'running')",
+            [],
+        )
+        .map(|_| ())
+        .map_err(db_error)
     }
 
     /// Full import used for the one-time IndexedDB migration.

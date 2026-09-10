@@ -176,6 +176,25 @@ async fn presets_remove(
 }
 
 #[tauri::command]
+async fn tasks_list(database: State<'_, Arc<Database>>) -> Result<Value, BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.list_tasks())
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
+#[tauri::command]
+async fn tasks_upsert(
+    database: State<'_, Arc<Database>>,
+    task: Value,
+) -> Result<(), BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.upsert_task(&task))
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
+#[tauri::command]
 async fn workspace_import(
     database: State<'_, Arc<Database>>,
     workspace: Value,
@@ -208,6 +227,7 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
             let database = Database::open(&dir.join("imagen.db"))?;
+            database.mark_stale_tasks()?;
             app.manage(Arc::new(database));
             Ok(())
         })
@@ -224,6 +244,8 @@ pub fn run() {
             history_set_favorite,
             presets_upsert,
             presets_remove,
+            tasks_list,
+            tasks_upsert,
             workspace_import,
             store_api_key,
             delete_api_key,

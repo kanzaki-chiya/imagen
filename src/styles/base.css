@@ -266,6 +266,10 @@ p {
   color: var(--success);
   background: var(--success-soft);
 }
+.badge-danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
 .segmented {
   display: flex;
   padding: 3px;

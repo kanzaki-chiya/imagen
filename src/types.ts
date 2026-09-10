@@ -66,6 +66,28 @@ export interface Preset {
   image: string;
 }
 
+export type TaskStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "interrupted";
+
+export interface GenerationTask {
+  id: string;
+  providerId: string;
+  model: string;
+  prompt: string;
+  params: GenerationParams;
+  status: TaskStatus;
+  errorKind?: string;
+  errorMessage?: string;
+  createdAt: string;
+  finishedAt?: string;
+  resultCount: number;
+}
+
 export interface Toast {
   id: string;
   message: string;

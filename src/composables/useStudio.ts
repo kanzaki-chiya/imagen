@@ -11,6 +11,7 @@ import {
 import type { InjectionKey } from "vue";
 import type {
   GenerationParams,
+  GenerationTask,
   ImageResult,
   Preset,
   Provider,
@@ -38,11 +39,13 @@ import {
 import {
   addHistory,
   deleteApiKey,
+  listTasks,
   loadWorkspace,
   removeStoredProvider,
   saveWorkspace,
   setHistoryFavorite,
   storeApiKey,
+  upsertTask,
 } from "../services/storage";
 import { t, tp } from "../i18n";
 
@@ -67,6 +70,7 @@ function createStudio() {
     persistenceError: false,
     preferMock: false,
     ready: false,
+    tasks: [] as GenerationTask[],
   });
   let progressTimer: ReturnType<typeof setInterval> | undefined;
   let persistTimer: ReturnType<typeof setTimeout> | undefined;
@@ -77,6 +81,16 @@ function createStudio() {
     params: GenerationParams;
     references: ReferenceImage[];
   } | null = null;
+  interface QueuedTask {
+    taskId: string;
+    request: {
+      prompt: string;
+      params: GenerationParams;
+      references: ReferenceImage[];
+    };
+  }
+  const taskQueue: QueuedTask[] = [];
+  const QUEUE_LIMIT = 8;
   let disposed = false;
   function persistSideEffect(operation: Promise<void>) {
     operation.catch(() => {
@@ -293,8 +307,40 @@ function createStudio() {
     const reference = state.references.find((item) => item.id === id);
     if (reference) reference.strength = strength;
   }
+  function taskFrom(
+    request: {
+      prompt: string;
+      params: GenerationParams;
+      references: ReferenceImage[];
+    },
+    status: GenerationTask["status"],
+  ): GenerationTask {
+    return {
+      id: crypto.randomUUID(),
+      providerId: request.params.providerId,
+      model: request.params.model,
+      prompt: request.prompt,
+      params: { ...request.params },
+      status,
+      createdAt: new Date().toISOString(),
+      resultCount: 0,
+    };
+  }
+  function updateTask(
+    id: string,
+    patch: Partial<GenerationTask>,
+  ) {
+    const task = state.tasks.find((item) => item.id === id);
+    if (!task) return;
+    Object.assign(task, patch);
+    persistSideEffect(upsertTask({ ...task, params: { ...task.params } }));
+  }
+  function startNextTask() {
+    const next = taskQueue.shift();
+    if (next) void runTask(next.taskId, next.request);
+  }
   async function generate(retry = false) {
-    if (state.generating || !state.ready) return;
+    if (!state.ready) return;
     const request =
       retry && lastRequest
         ? lastRequest
@@ -311,7 +357,36 @@ function createStudio() {
       return;
     }
     lastRequest = request;
+    if (state.generating) {
+      if (taskQueue.length >= QUEUE_LIMIT) {
+        notify(t("toast.queueFull"), "error");
+        return;
+      }
+      const task = taskFrom(request, "pending");
+      state.tasks.unshift(task);
+      persistSideEffect(upsertTask({ ...task }));
+      taskQueue.push({ taskId: task.id, request });
+      notify(t("toast.queued"), "info");
+      return;
+    }
     state.taskError = "";
+    const task = taskFrom(request, "running");
+    state.tasks.unshift(task);
+    void runTask(task.id, request);
+  }
+  async function runTask(
+    taskId: string,
+    request: {
+      prompt: string;
+      params: GenerationParams;
+      references: ReferenceImage[];
+    },
+  ) {
+    updateTask(taskId, { status: "running" });
+    const taskProvider =
+      state.providers.find(
+        (item) => item.id === request.params.providerId,
+      ) ?? provider.value;
     state.generating = true;
     state.progress = 0;
     const fail = state.failNext;
@@ -319,7 +394,7 @@ function createStudio() {
     const seed = request.params.seed
       ? Number(request.params.seed)
       : Math.floor(Math.random() * 4294967291);
-    const requestId = crypto.randomUUID();
+    const requestId = taskId;
     const controller = new AbortController();
     activeJob = { id: requestId, controller };
     progressTimer = setInterval(() => {
@@ -331,7 +406,7 @@ function createStudio() {
           requestId,
           prompt: request.prompt,
           params: request.params,
-          provider: provider.value,
+          provider: taskProvider,
           references: request.references,
         },
         {
@@ -370,6 +445,11 @@ function createStudio() {
       state.selectedId = results[0].id;
       state.history.unshift(...results);
       persistSideEffect(addHistory(results));
+      updateTask(taskId, {
+        status: "succeeded",
+        finishedAt: new Date().toISOString(),
+        resultCount: results.length,
+      });
       if (usingDesktopBackend(state.preferMock)) {
         const target = state.providers.find(
           (item) => item.id === request.params.providerId,
@@ -382,6 +462,12 @@ function createStudio() {
       const backend = asBackendError(cause);
       const kind = t(`err.${backend.kind}`);
       state.taskError = backend.message;
+      updateTask(taskId, {
+        status: backend.kind === "cancelled" ? "cancelled" : "failed",
+        errorKind: backend.kind,
+        errorMessage: backend.message,
+        finishedAt: new Date().toISOString(),
+      });
       notify(`${kind} · ${backend.message}`, "error");
       if (backend.kind === "auth" || backend.kind === "config") {
         const target = state.providers.find(
@@ -393,6 +479,7 @@ function createStudio() {
       clearInterval(progressTimer);
       activeJob = null;
       state.generating = false;
+      startNextTask();
     }
   }
   function cancelGeneration() {
@@ -400,11 +487,31 @@ function createStudio() {
     const job = activeJob;
     activeJob = null;
     job?.controller.abort();
-    if (job) cancelDesktopGeneration(job.id);
+    if (job) {
+      cancelDesktopGeneration(job.id);
+      updateTask(job.id, {
+        status: "cancelled",
+        finishedAt: new Date().toISOString(),
+      });
+    }
     clearInterval(progressTimer);
     state.generating = false;
     state.progress = 0;
     notify(t("toast.canceled"), "info");
+    startNextTask();
+  }
+  function cancelTask(id: string) {
+    const index = taskQueue.findIndex((item) => item.taskId === id);
+    if (index >= 0) {
+      taskQueue.splice(index, 1);
+      updateTask(id, {
+        status: "cancelled",
+        finishedAt: new Date().toISOString(),
+      });
+      notify(t("toast.canceled"), "info");
+      return;
+    }
+    if (activeJob?.id === id) cancelGeneration();
   }
   function newSession() {
     if (state.generating) {
@@ -479,6 +586,11 @@ function createStudio() {
   );
   onMounted(async () => {
     try {
+      state.tasks = await listTasks();
+    } catch {
+      state.tasks = [];
+    }
+    try {
       const saved = await loadWorkspace();
       if (saved && !disposed) {
         state.prompt =
@@ -552,6 +664,7 @@ function createStudio() {
     setReferenceStrength,
     generate,
     cancelGeneration,
+    cancelTask,
     newSession,
     setFailNext,
     setPreferMock,
