@@ -372,13 +372,7 @@ export const en: Record<string, string> = {
   "settings.workspace.backendLive": "Live provider",
   "settings.workspace.backendMockOn": "Mock mode",
   "settings.workspace.backendMockOnly": "Mock only",
-  "settings.workspace.preferMock": "Always use mock generation",
-  "settings.workspace.preferMockDesc": "Use bundled sample scenes instead of API requests.",
-  "settings.workspace.failNext": "Simulate a failed generation",
-  "settings.workspace.failNextDesc": "The next run returns a simulated timeout; a retry succeeds.",
-  "settings.workspace.mockTitle": "About mock generation",
-  "settings.workspace.mockBody": "Images come from four bundled sample scenes. Your prompt picks the scene, the seed shifts the color treatment; aspect ratio, resolution, and output format shape the exported image. Quality, guidance, negative prompt and references are recorded but never sent to an AI model.",
-  "settings.workspace.backToGenerate": "Back to Generate",
+
 
   "settings.about.tagline": "A quiet corner for visual ideas.",
   "settings.about.version": "Version 0.1.0 · Local workspace",
@@ -420,8 +414,7 @@ export const en: Record<string, string> = {
   "toast.newSession": "New session ready · previous images are in History",
   "toast.persistFail": "Local storage is unavailable. Keep this window open to preserve your work.",
   "toast.restoreFail": "Could not restore local data. This session is still usable.",
-  "toast.mockOn": "Mock generation enabled · no API requests will be sent",
-  "toast.mockOff": "Desktop backend enabled · generation uses your provider",
+
   "toast.downloadRequested": "Image download requested",
   "toast.downloadFail": "Could not export the image. Try again.",
   "toast.exportFail": "Could not export the image. Try again.",
@@ -464,6 +457,6 @@ export const en: Record<string, string> = {
   "validation.providerQuery": "Remove query parameters and fragments from the base URL.",
   "validation.providerModel": "Enter a model identifier.",
   "validation.noApiKey": "Add an API key for this provider in Settings before generating.",
-  "validation.mockTimeout": "The provider timed out (mock error). Your prompt is safe. Try this generation again.",
+
   "validation.canceled": "Generation canceled.",
 };

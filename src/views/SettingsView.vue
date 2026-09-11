@@ -5,7 +5,6 @@ import {
   Palette,
   HardDrive,
   Info,
-  FlaskConical,
   Monitor,
   ShieldCheck,
   ChevronRight,
@@ -182,48 +181,6 @@ const sections = [
                   : t("settings.workspace.backendMockOnly")
               }}</span
             >
-          </div>
-          <div v-if="liveBackend" class="preference-row">
-            <div>
-              <h3>{{ t("settings.workspace.preferMock") }}</h3>
-              <p>{{ t("settings.workspace.preferMockDesc") }}</p>
-            </div>
-            <button
-              class="switch"
-              role="switch"
-              :aria-label="t('settings.workspace.preferMock')"
-              :aria-checked="studio.state.preferMock"
-              :class="{ enabled: studio.state.preferMock }"
-              @click="studio.setPreferMock(!studio.state.preferMock)"
-            >
-              <span />
-            </button>
-          </div>
-          <div class="preference-row mock-settings">
-            <div>
-              <h3>
-                <FlaskConical :size="16" />{{ t("settings.workspace.failNext") }}
-              </h3>
-              <p>{{ t("settings.workspace.failNextDesc") }}</p>
-            </div>
-            <button
-              class="switch"
-              role="switch"
-              :aria-label="t('settings.workspace.failNext')"
-              :aria-checked="studio.state.failNext"
-              :class="{ enabled: studio.state.failNext }"
-              @click="studio.setFailNext(!studio.state.failNext)"
-            >
-              <span />
-            </button>
-          </div>
-          <div class="mock-explainer">
-            <h3>{{ t("settings.workspace.mockTitle") }}</h3>
-            <p>{{ t("settings.workspace.mockBody") }}</p>
-            <button class="btn" @click="studio.navigate('generate')">
-              {{ t("settings.workspace.backToGenerate")
-              }}<ChevronRight :size="13" />
-            </button>
           </div>
         </section>
         <TaskList v-else-if="section === 'tasks'" />
@@ -453,9 +410,6 @@ const sections = [
 .workspace-data strong {
   font-weight: 500;
 }
-.mock-settings {
-  margin-top: 20px;
-}
 .switch {
   width: 34px;
   height: 20px;
@@ -477,27 +431,6 @@ const sections = [
 }
 .switch.enabled > span {
   transform: translateX(14px);
-}
-.mock-explainer {
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel);
-}
-.mock-explainer h3 {
-  font-size: 12px;
-  font-weight: 600;
-}
-.mock-explainer p {
-  color: var(--text-muted);
-  line-height: 1.9;
-  margin-top: 10px;
-  font-size: 11px;
-  max-width: 560px;
-}
-.mock-explainer .btn {
-  margin-top: 18px;
-  font-size: 10px;
 }
 .about-section {
   padding: 20px 10px;

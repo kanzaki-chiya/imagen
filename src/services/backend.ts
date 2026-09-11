@@ -43,7 +43,6 @@ export interface ProducedImage {
 }
 
 export interface GenerateOptions {
-  failNext: boolean;
   preferMock: boolean;
   seed: number;
   signal: AbortSignal;
@@ -108,13 +107,6 @@ export async function generateImages(
   job: GenerationJob,
   options: GenerateOptions,
 ): Promise<ProducedImage[]> {
-  if (options.failNext) {
-    await wait(MOCK_DURATION_MS, options.signal);
-    throw {
-      kind: "network",
-      message: t("validation.mockTimeout"),
-    } satisfies BackendErrorPayload;
-  }
   if (usingDesktopBackend(options.preferMock))
     return desktopGenerate(job, options);
   return mockGenerate(job, options);

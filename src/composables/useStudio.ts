@@ -64,7 +64,6 @@ function createStudio() {
     generating: false,
     progress: 0,
     taskError: "",
-    failNext: false,
     toasts: [] as Toast[],
     saving: false,
     persistenceError: false,
@@ -389,8 +388,6 @@ function createStudio() {
       ) ?? provider.value;
     state.generating = true;
     state.progress = 0;
-    const fail = state.failNext;
-    state.failNext = false;
     const seed = request.params.seed
       ? Number(request.params.seed)
       : Math.floor(Math.random() * 4294967291);
@@ -410,7 +407,6 @@ function createStudio() {
           references: request.references,
         },
         {
-          failNext: fail,
           preferMock: state.preferMock,
           seed,
           signal: controller.signal,
@@ -526,16 +522,7 @@ function createStudio() {
     navigate("generate");
     notify(t("toast.newSession"));
   }
-  function setFailNext(value: boolean) {
-    state.failNext = value;
-  }
-  function setPreferMock(value: boolean) {
-    state.preferMock = value;
-    notify(
-      value ? t("toast.mockOn") : t("toast.mockOff"),
-      "info",
-    );
-  }
+
   function snapshot(): StoredWorkspace {
     return {
       version: 1,
@@ -666,8 +653,6 @@ function createStudio() {
     cancelGeneration,
     cancelTask,
     newSession,
-    setFailNext,
-    setPreferMock,
   };
 }
 

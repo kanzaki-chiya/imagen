@@ -372,13 +372,7 @@ export const zh: Record<string, string> = {
   "settings.workspace.backendLive": "真实服务商",
   "settings.workspace.backendMockOn": "模拟模式",
   "settings.workspace.backendMockOnly": "仅模拟",
-  "settings.workspace.preferMock": "始终使用模拟生成",
-  "settings.workspace.preferMockDesc": "使用内置样图场景，不发送 API 请求。",
-  "settings.workspace.failNext": "模拟一次生成失败",
-  "settings.workspace.failNextDesc": "下一次生成将模拟超时，重试会正常完成。",
-  "settings.workspace.mockTitle": "关于模拟生成",
-  "settings.workspace.mockBody": "图片来自四张内置样图。提示词决定场景，种子决定色彩处理；宽高比、分辨率和输出格式作用于导出图片。质量、引导强度、负面提示词和参考图会被记录，但不会调用 AI 模型。",
-  "settings.workspace.backToGenerate": "返回生成",
+
 
   "settings.about.tagline": "一方安静的视觉灵感空间。",
   "settings.about.version": "版本 0.1.0 · 本地工作区",
@@ -420,8 +414,7 @@ export const zh: Record<string, string> = {
   "toast.newSession": "新会话已就绪 · 之前的图片在历史中",
   "toast.persistFail": "本地存储不可用。请保持此窗口打开以保留工作内容。",
   "toast.restoreFail": "无法恢复本地数据，本次会话仍可使用。",
-  "toast.mockOn": "已开启模拟生成 · 不会发送 API 请求",
-  "toast.mockOff": "已切换到桌面后端 · 生成将使用你的服务商",
+
   "toast.downloadRequested": "已开始下载图片",
   "toast.downloadFail": "无法导出图片，请重试。",
   "toast.exportFail": "图片导出失败，请重试。",
@@ -464,6 +457,5 @@ export const zh: Record<string, string> = {
   "validation.providerQuery": "请移除 Base URL 中的查询参数和锚点。",
   "validation.providerModel": "请输入模型标识符。",
   "validation.noApiKey": "请先在设置中为该服务商添加 API Key。",
-  "validation.mockTimeout": "服务商响应超时（模拟错误）。提示词已保留，请重试这次生成。",
   "validation.canceled": "生成已取消。",
 };
