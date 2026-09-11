@@ -33,6 +33,10 @@ export const en: Record<string, string> = {
   "header.saving": "Saving…",
   "header.notSaved": "Not saved",
   "header.newSession": "New session",
+  "titlebar.minimize": "Minimize",
+  "titlebar.maximize": "Maximize",
+  "titlebar.restore": "Restore",
+  "titlebar.close": "Close",
   "header.toggleParams": "Toggle generation settings",
 
   "status.generating": "Generating · {progress}%",

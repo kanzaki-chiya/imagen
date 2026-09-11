@@ -33,6 +33,10 @@ export const zh: Record<string, string> = {
   "header.saving": "保存中…",
   "header.notSaved": "未保存",
   "header.newSession": "新会话",
+  "titlebar.minimize": "最小化",
+  "titlebar.maximize": "最大化",
+  "titlebar.restore": "还原",
+  "titlebar.close": "关闭",
   "header.toggleParams": "切换生成参数面板",
 
   "status.generating": "生成中 · {progress}%",

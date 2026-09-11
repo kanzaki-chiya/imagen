@@ -8,6 +8,7 @@ import { useI18n } from "./i18n";
 import { usingDesktopBackend } from "./services/backend";
 import AppSidebar from "./components/layout/AppSidebar.vue";
 import AppHeader from "./components/layout/AppHeader.vue";
+import TitleBar from "./components/layout/TitleBar.vue";
 import ToastStack from "./components/ui/ToastStack.vue";
 import BaseDialog from "./components/ui/BaseDialog.vue";
 import GenerateView from "./views/GenerateView.vue";
@@ -62,6 +63,7 @@ const shortcutCombos = [
 </script>
 <template>
   <div class="app">
+    <TitleBar />
     <div class="app-body" :inert="!state.ready" :aria-busy="!state.ready">
       <AppSidebar
         :page="state.page"
