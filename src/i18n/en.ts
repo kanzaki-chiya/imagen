@@ -463,4 +463,14 @@ export const en: Record<string, string> = {
   "validation.noApiKey": "Add an API key for this provider in Settings before generating.",
 
   "validation.canceled": "Generation canceled.",
+  "err.invalid_request": "Rejected",
+  "errmsg.config": "Provider configuration problem — check the Base URL.",
+  "errmsg.auth": "Invalid API key or missing permission — check Provider settings.",
+  "errmsg.rate_limit": "The provider is rate-limiting requests. Try again shortly.",
+  "errmsg.network": "Cannot reach the provider. Check your network and Base URL.",
+  "errmsg.server": "The provider ran into an error. Try again later.",
+  "errmsg.invalid_request": "The provider rejected the request parameters.",
+  "errmsg.multiUnsupported": "This provider may not support multiple images per request — set Count to 1 and retry.",
+  "errmsg.invalid_response": "The provider returned an unreadable response.",
+  "errmsg.cancelled": "Generation canceled.",
 };

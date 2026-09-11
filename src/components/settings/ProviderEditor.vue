@@ -17,6 +17,7 @@ import { validateProvider } from "../../services/generation";
 import {
   asBackendError,
   backendAvailable,
+  describeError,
   testProviderConnection,
 } from "../../services/backend";
 import type { ConnectionTestResult } from "../../services/backend";
@@ -106,7 +107,7 @@ async function test() {
           })
         : t("provider.testSuccess.noModels", { ms: result.latencyMs });
     } catch (cause) {
-      error.value = asBackendError(cause).message;
+      error.value = describeError(asBackendError(cause));
       draft.value.status = "error";
     } finally {
       testing.value = false;
@@ -168,7 +169,7 @@ async function fetchModels() {
       { n: result.models.length, ms: result.latencyMs },
     );
   } catch (cause) {
-    error.value = asBackendError(cause).message;
+    error.value = describeError(asBackendError(cause));
     draft.value.status = "error";
   } finally {
     fetching.value = false;

@@ -131,7 +131,7 @@ fn http_error(status: StatusCode, body: &str) -> BackendError {
             }
         });
     let kind = match status.as_u16() {
-        400 | 404 | 422 => ErrorKind::Config,
+        400 | 404 | 422 => ErrorKind::InvalidRequest,
         401 | 403 => ErrorKind::Auth,
         429 => ErrorKind::RateLimit,
         code if code >= 500 => ErrorKind::Server,

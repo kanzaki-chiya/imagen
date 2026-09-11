@@ -31,6 +31,7 @@ import {
 import { chooseSample, validateGeneration } from "../services/generation";
 import {
   asBackendError,
+  describeError,
   backendAvailable,
   cancelDesktopGeneration,
   generateImages,
@@ -456,15 +457,17 @@ function createStudio() {
     } catch (cause) {
       if (controller.signal.aborted || disposed) return;
       const backend = asBackendError(cause);
-      const kind = t(`err.${backend.kind}`);
-      state.taskError = backend.message;
+      const message = describeError(backend, {
+        count: request.params.count,
+      });
+      state.taskError = message;
       updateTask(taskId, {
         status: backend.kind === "cancelled" ? "cancelled" : "failed",
         errorKind: backend.kind,
         errorMessage: backend.message,
         finishedAt: new Date().toISOString(),
       });
-      notify(`${kind} · ${backend.message}`, "error");
+      notify(message, "error");
       if (backend.kind === "auth" || backend.kind === "config") {
         const target = state.providers.find(
           (item) => item.id === request.params.providerId,

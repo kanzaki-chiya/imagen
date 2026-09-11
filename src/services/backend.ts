@@ -14,6 +14,7 @@ export type BackendErrorKind =
   | "rate_limit"
   | "network"
   | "server"
+  | "invalid_request"
   | "invalid_response"
   | "cancelled";
 
@@ -82,6 +83,22 @@ export function asBackendError(error: unknown): BackendErrorPayload {
     kind: "network",
     message: error instanceof Error ? error.message : String(error),
   };
+}
+
+/** Friendly, localized error text with the upstream detail appended. */
+export function describeError(
+  error: BackendErrorPayload,
+  options?: { count?: number },
+): string {
+  const key =
+    error.kind === "invalid_request" && (options?.count ?? 0) > 1
+      ? "errmsg.multiUnsupported"
+      : `errmsg.${error.kind}`;
+  const friendly = t(key);
+  const detail = error.message.trim();
+  const known = friendly !== key;
+  if (!detail || detail === friendly) return known ? friendly : detail || key;
+  return known ? `${friendly}（${detail}）` : detail;
 }
 
 function wait(milliseconds: number, signal: AbortSignal): Promise<void> {

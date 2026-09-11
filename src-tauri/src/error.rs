@@ -8,6 +8,7 @@ pub enum ErrorKind {
     RateLimit,
     Network,
     Server,
+    InvalidRequest,
     InvalidResponse,
     Cancelled,
 }
