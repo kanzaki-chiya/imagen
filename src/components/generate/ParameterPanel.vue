@@ -274,7 +274,12 @@ function value(event: Event) {
             <option value="1K">{{ t("params.resolution.1K") }}</option>
             <option value="2K">{{ t("params.resolution.2K") }}</option>
             <option value="4K">{{ t("params.resolution.4K") }}</option>
-          </select></label
+          </select
+          ><span
+            v-if="params.resolution !== '1K' && live"
+            class="field-hint"
+            >{{ t("params.resolutionNote") }}</span
+          ></label
         >
         <div class="field">
           <span class="field-label"

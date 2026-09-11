@@ -13,8 +13,12 @@ export interface ProviderCapabilities {
 /**
  * Parameters each provider protocol actually sends today.
  * OpenAI Images API (and compatible endpoints) ignore seed/guidance/
- * negative prompt/references — they are recorded in history only.
- * 4K is produced by client-side upscale metadata, not the API.
+ * negative prompt — they are recorded in history only.
+ * Reference images switch the request to `images/edits` (image-to-image);
+ * providers without it return a clear "not supported" error.
+ * Above 1K, compatible providers get an exact `WxH` size request; if the
+ * provider still returns a smaller image the desktop backend upscales it
+ * locally and flags the result as `upscaled`.
  */
 export function capabilitiesFor(provider: Provider): ProviderCapabilities {
   switch (provider.kind) {
@@ -23,7 +27,7 @@ export function capabilitiesFor(provider: Provider): ProviderCapabilities {
         seed: false,
         guidance: false,
         negativePrompt: false,
-        references: false,
+        references: true,
         resolutions: ["1K", "2K", "4K"],
         maxCount: 4,
       };
@@ -32,29 +36,45 @@ export function capabilitiesFor(provider: Provider): ProviderCapabilities {
         seed: false,
         guidance: false,
         negativePrompt: false,
-        references: false,
+        references: true,
         resolutions: ["1K", "2K", "4K"],
         maxCount: 4,
       };
   }
 }
 
+const BASE_SIZES: Record<AspectRatio, [number, number]> = {
+  "1:1": [1024, 1024],
+  "3:2": [1536, 1024],
+  "4:3": [1280, 960],
+  "16:9": [1536, 864],
+  "9:16": [864, 1536],
+  "2:3": [1024, 1536],
+  "3:4": [960, 1280],
+};
+
 export function dimensions(
   aspect: AspectRatio,
   resolution: GenerationParams["resolution"],
 ) {
-  const sizes: Record<AspectRatio, [number, number]> = {
-    "1:1": [1024, 1024],
-    "3:2": [1536, 1024],
-    "4:3": [1280, 960],
-    "16:9": [1536, 864],
-    "9:16": [864, 1536],
-    "2:3": [1024, 1536],
-    "3:4": [960, 1280],
-  };
-  const [width, height] = sizes[aspect];
+  const [width, height] = BASE_SIZES[aspect];
   const scale = resolution === "4K" ? 4 : resolution === "2K" ? 2 : 1;
   return { width: width * scale, height: height * scale };
+}
+
+/**
+ * True when a produced image's aspect differs meaningfully from the
+ * requested ratio — i.e. the provider ignored the `size` parameter.
+ */
+export function aspectAdjusted(
+  width: number,
+  height: number,
+  aspect: AspectRatio,
+): boolean {
+  const [baseW, baseH] = BASE_SIZES[aspect];
+  const expected = baseW / baseH;
+  const actual = width / height;
+  return Math.abs(actual - expected) > 0.02;
 }
 
 export function validateGeneration(

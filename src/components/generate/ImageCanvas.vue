@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   Star,
   Download,
+  Copy,
   Maximize2,
   Columns2,
   ChevronLeft,
@@ -34,6 +35,7 @@ const { t, tp } = useI18n();
 const emit = defineEmits<{
   select: [id: string];
   favorite: [id: string];
+  copy: [image: ImageResult];
   download: [image: ImageResult];
   reuse: [image: ImageResult];
   cancel: [];
@@ -122,6 +124,14 @@ function next(direction: number) {
             :size="15"
             :fill="selected?.favorite ? 'currentColor' : 'none'"
           /></button
+        ><button
+          class="icon-btn"
+          :disabled="!selected || generating"
+          :aria-label="t('canvas.copyImage')"
+          :data-tip="t('canvas.copyImage')"
+          @click="selected && emit('copy', selected)"
+        >
+          <Copy :size="15" /></button
         ><button
           class="icon-btn"
           :disabled="!selected || generating"
@@ -237,7 +247,12 @@ function next(direction: number) {
           <span class="canvas-size mono"
             >{{ selected.width }} × {{ selected.height
             }}<span class="dot-separator">·</span
-            >{{ selected.params.format }}</span
+            >{{ selected.params.format
+            }}<template v-if="selected.upscaled"
+              ><span class="dot-separator">·</span>{{
+                t("canvas.upscaled")
+              }}</template
+            ></span
           >
           <div class="zoom-controls">
             <button

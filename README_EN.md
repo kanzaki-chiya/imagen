@@ -23,12 +23,16 @@ A lightweight, secure, local-first AI image generation desktop workspace. Built 
 - **History & Asset Management**
   - Generation records grouped chronologically with both waterfall grid and compact list layouts.
   - Instant keyword search, model filtering, bookmarking, and one-click prompt/parameter reuse.
-  - Detailed inspection modal for full parameters and reference images, with direct native folder navigation and save-as export.
+  - Deletions go to a recycle bin first (restorable for 30 days); permanent deletion also removes the local image and thumbnail files.
+  - Detailed inspection modal for full parameters and reference images, with copy-to-clipboard, direct native folder navigation and save-as export.
+  - 2K/4K tiers request native large sizes from compatible providers and upscale locally when capped, clearly flagged in the detail view.
 - **Prompt Preset Library**
   - Built-in multi-category presets; save, edit, and organize custom parameter recipes for rapid workflow reuse.
 - **Immersive Desktop Experience**
   - Custom frameless title bar tailored for 1080p and 1440p displays.
   - Responsive adaptive layout: compact windows automatically collapse the sidebar into icons and transition parameter panels into slide-over drawers.
+  - Clipboard-native workflow: Ctrl+V pastes a clipboard image as a reference; generated results copy straight to the clipboard.
+  - Silent update check on launch with one-click download, install and restart (signed Tauri Updater artifacts).
   - Seamless bilingual switching (Simplified Chinese & English) and theme customization (Light / Dark / Follow System).
 
 ## Security & Local Storage

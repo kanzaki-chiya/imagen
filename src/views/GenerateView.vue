@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { computed, shallowRef } from "vue";
+import { computed, onMounted, onUnmounted, shallowRef } from "vue";
 import { useStudio } from "../composables/useStudio";
-import { exportImage } from "../services/exportImage";
+import {
+  copyResultImage,
+  exportImage,
+  suggestedExportName,
+} from "../services/exportImage";
 import {
   backendAvailable,
   exportImageTo,
@@ -20,14 +24,27 @@ const { state } = studio;
 const { t } = useI18n();
 const live = computed(() => usingDesktopBackend(state.preferMock));
 const savingPreset = shallowRef(false);
+function paste(event: ClipboardEvent) {
+  if (document.querySelector("dialog[open]")) return;
+  const files = Array.from(event.clipboardData?.files ?? []);
+  if (files.length) void studio.addReferences(files);
+}
+onMounted(() => window.addEventListener("paste", paste));
+onUnmounted(() => window.removeEventListener("paste", paste));
+async function copyImage(image: ImageResult) {
+  try {
+    await copyResultImage(image);
+    studio.notify(t("toast.imageCopied"));
+  } catch {
+    studio.notify(t("toast.clipboardFail"), "error");
+  }
+}
 async function download(image: ImageResult) {
   try {
     if (image.path && backendAvailable()) {
-      const extension = image.path.split(".").pop() ?? "png";
-      const title = (image.title || "imagen").replace(/[\\/:*?"<>|]/g, "-");
       const target = await exportImageTo(
         image.path,
-        `${title.slice(0, 60)}-${image.id.slice(0, 8)}.${extension}`,
+        suggestedExportName(image),
       );
       if (target) studio.notify(t("toast.exported", { path: target }));
       return;
@@ -67,6 +84,7 @@ function savePreset(name: string, description: string, prompt: string) {
         :live="live"
         @select="studio.selectImage"
         @favorite="studio.toggleFavorite"
+        @copy="copyImage"
         @download="download"
         @reuse="studio.reuseImage"
         @cancel="studio.cancelGeneration"

@@ -28,7 +28,11 @@ import {
   initialPrompt,
   sampleImages,
 } from "../data/demo";
-import { chooseSample, validateGeneration } from "../services/generation";
+import {
+  aspectAdjusted,
+  chooseSample,
+  validateGeneration,
+} from "../services/generation";
 import {
   asBackendError,
   describeError,
@@ -40,12 +44,17 @@ import {
 import {
   addHistory,
   deleteApiKey,
+  emptyStoredTrash,
+  listDeletedImages,
   listTasks,
   loadWorkspace,
+  purgeStoredImage,
   removeStoredProvider,
+  restoreStoredImage,
   saveWorkspace,
   setHistoryFavorite,
   storeApiKey,
+  trashStoredImage,
   upsertTask,
 } from "../services/storage";
 import { t, tp } from "../i18n";
@@ -58,6 +67,7 @@ function createStudio() {
     params: { ...defaultParams },
     providers: structuredClone(defaultProviders),
     history: initialHistory,
+    trash: [] as ImageResult[],
     presets: structuredClone(defaultPresets),
     references: [] as ReferenceImage[],
     results: initialHistory.slice(0, 4),
@@ -151,6 +161,53 @@ function createStudio() {
       notify(
         image.favorite ? t("toast.favAdd") : t("toast.favRemove"),
       );
+    }
+  }
+  function trashImage(id: string) {
+    const image = state.history.find((item) => item.id === id);
+    if (!image) return;
+    image.deletedAt = Date.now();
+    state.history = state.history.filter((item) => item.id !== id);
+    state.trash.unshift(image);
+    if (state.results.some((item) => item.id === id)) {
+      state.results = state.results.filter((item) => item.id !== id);
+      if (state.selectedId === id)
+        state.selectedId = state.results[0]?.id ?? "";
+    }
+    persistSideEffect(trashStoredImage(id));
+    notify(t("toast.trashed"), "info");
+  }
+  function restoreImage(image: ImageResult) {
+    state.trash = state.trash.filter((item) => item.id !== image.id);
+    image.deletedAt = undefined;
+    const index = state.history.findIndex(
+      (item) => item.createdAt < image.createdAt,
+    );
+    state.history.splice(
+      index < 0 ? state.history.length : index,
+      0,
+      image,
+    );
+    persistSideEffect(restoreStoredImage(image.id));
+    notify(t("toast.imageRestored"));
+  }
+  function purgeImage(id: string) {
+    state.trash = state.trash.filter((item) => item.id !== id);
+    persistSideEffect(purgeStoredImage(id));
+    notify(t("toast.imagePurged"), "info");
+  }
+  function emptyTrash() {
+    if (!state.trash.length) return;
+    state.trash = [];
+    persistSideEffect(emptyStoredTrash().then(() => undefined));
+    notify(t("toast.trashEmptied"), "info");
+  }
+  async function refreshTrash() {
+    if (!backendAvailable()) return;
+    try {
+      state.trash = await listDeletedImages();
+    } catch {
+      // Trash stays as-is when the backend list call fails.
     }
   }
   function openHistory(image: ImageResult) {
@@ -421,11 +478,16 @@ function createStudio() {
         src: item.src,
         path: item.path,
         thumb: item.thumb,
-        title: request.prompt
-          .split(/[,.]/)[0]
+        title: (
+          request.prompt
+            .split(/[,，.。!！?？;；:：、\n]/)
+            .find((part) => part.trim().length > 0) ?? request.prompt
+        )
           .split(" ")
           .slice(0, 6)
-          .join(" "),
+          .join(" ")
+          .trim()
+          .slice(0, 42),
         prompt: request.prompt,
         params: { ...request.params },
         createdAt: new Date().toISOString(),
@@ -437,6 +499,7 @@ function createStudio() {
         position: item.position,
         batchId,
         references: request.references,
+        upscaled: item.upscaled === true,
       }));
       state.results = results;
       state.selectedId = results[0].id;
@@ -454,6 +517,16 @@ function createStudio() {
         if (target) target.status = "connected";
       }
       notify(tp("toast.ready", results.length));
+      if (
+        results.some((image) =>
+          aspectAdjusted(
+            image.width,
+            image.height,
+            image.params.aspectRatio,
+          ),
+        )
+      )
+        notify(t("toast.aspectAdjusted"), "info");
     } catch (cause) {
       if (controller.signal.aborted || disposed) return;
       const backend = asBackendError(cause);
@@ -640,6 +713,11 @@ function createStudio() {
     resetParams,
     selectImage,
     toggleFavorite,
+    trashImage,
+    restoreImage,
+    purgeImage,
+    emptyTrash,
+    refreshTrash,
     openHistory,
     reuseImage,
     applyPreset,

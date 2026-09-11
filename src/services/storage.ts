@@ -87,6 +87,33 @@ export async function setHistoryFavorite(
   await invoke("history_set_favorite", { id, favorite });
 }
 
+export async function trashStoredImage(id: string): Promise<void> {
+  if (!desktop) return;
+  await invoke("history_remove", { id });
+}
+
+export async function restoreStoredImage(id: string): Promise<void> {
+  if (!desktop) return;
+  await invoke("history_restore", { id });
+}
+
+/** Permanently deletes the image file, thumbnail and history row. */
+export async function purgeStoredImage(id: string): Promise<void> {
+  if (!desktop) return;
+  await invoke("history_purge", { id });
+}
+
+/** Permanently deletes everything in the trash; returns the count removed. */
+export async function emptyStoredTrash(): Promise<number> {
+  if (!desktop) return 0;
+  return invoke<number>("history_empty_trash");
+}
+
+export async function listDeletedImages(): Promise<ImageResult[]> {
+  if (!desktop) return [];
+  return invoke<ImageResult[]>("history_deleted");
+}
+
 export async function removeStoredProvider(id: string): Promise<void> {
   if (!desktop) return;
   await invoke("providers_remove", { id });

@@ -1,11 +1,29 @@
 <script setup lang="ts">
-import { RotateCcw, Star, Download, Copy, FolderOpen } from "lucide-vue-next";
+import {
+  RotateCcw,
+  Star,
+  Download,
+  Copy,
+  FolderOpen,
+  Trash2,
+  Undo2,
+  ImageDown,
+} from "lucide-vue-next";
+import { computed } from "vue";
 import type { ImageResult } from "../../types";
+import { aspectAdjusted } from "../../services/generation";
 import BaseDialog from "../ui/BaseDialog.vue";
 import ResultImage from "../ui/ResultImage.vue";
 import { useI18n } from "../../i18n";
 const { t, tp } = useI18n();
-defineProps<{ image: ImageResult }>();
+const props = defineProps<{ image: ImageResult; trash?: boolean }>();
+const adjusted = computed(() =>
+  aspectAdjusted(
+    props.image.width,
+    props.image.height,
+    props.image.params.aspectRatio,
+  ),
+);
 const emit = defineEmits<{
   close: [];
   reuse: [image: ImageResult];
@@ -13,6 +31,10 @@ const emit = defineEmits<{
   download: [image: ImageResult];
   openFolder: [image: ImageResult];
   copy: [text: string];
+  copyImage: [image: ImageResult];
+  trash: [image: ImageResult];
+  restore: [image: ImageResult];
+  purge: [image: ImageResult];
 }>();
 </script>
 <template>
@@ -66,18 +88,33 @@ const emit = defineEmits<{
             <dd class="mono">{{ image.path.split(/[\\/]/).pop() }}</dd>
           </template>
         </dl>
-        <span
-          class="badge"
-          :class="image.path ? 'badge-success' : 'badge-accent'"
-          >{{
-            image.path
-              ? t("history.detail.badge.real")
-              : t("history.detail.badge.mock")
+        <div class="detail-badges">
+          <span
+            class="badge"
+            :class="image.path ? 'badge-success' : 'badge-accent'"
+            >{{
+              image.path
+                ? t("history.detail.badge.real")
+                : t("history.detail.badge.mock")
+            }}</span
+          ><span v-if="image.upscaled" class="badge">{{
+            t("history.detail.badge.upscaled")
           }}</span
-        >
+          ><span v-if="adjusted" class="badge badge-accent">{{
+            t("history.detail.badge.aspect")
+          }}</span>
+        </div>
       </div>
     </div>
-    <template #footer
+    <template v-if="trash" #footer
+      ><button class="btn" @click="emit('restore', image)">
+        <Undo2 :size="15" />{{ t("history.detail.restore") }}</button
+      ><button class="btn" @click="emit('download', image)">
+        <Download :size="15" />{{ t("history.detail.download") }}</button
+      ><button class="btn btn-danger" @click="emit('purge', image)">
+        <Trash2 :size="15" />{{ t("history.detail.deleteForever") }}
+      </button></template
+    ><template v-else #footer
       ><button
         class="btn btn-ghost"
         :class="{ 'favorite-active': image.favorite }"
@@ -88,6 +125,8 @@ const emit = defineEmits<{
             ? t("history.detail.favorited")
             : t("history.detail.favorite")
         }}</button
+      ><button class="btn" @click="emit('copyImage', image)">
+        <ImageDown :size="15" />{{ t("history.detail.copyImage") }}</button
       ><button class="btn" @click="emit('download', image)">
         <Download :size="15" />{{ t("history.detail.download") }}</button
       ><button
@@ -96,6 +135,8 @@ const emit = defineEmits<{
         @click="emit('openFolder', image)"
       >
         <FolderOpen :size="15" />{{ t("history.detail.openFolder") }}</button
+      ><button class="btn btn-ghost" @click="emit('trash', image)">
+        <Trash2 :size="15" />{{ t("history.detail.delete") }}</button
       ><button class="btn btn-primary" @click="emit('reuse', image)">
         <RotateCcw :size="15" />{{ t("history.detail.reuse") }}
       </button></template
@@ -148,6 +189,11 @@ const emit = defineEmits<{
 }
 .favorite-active {
   color: var(--accent);
+}
+.detail-badges {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
 }
 .negative {
   margin-top: 15px;

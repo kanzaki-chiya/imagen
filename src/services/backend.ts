@@ -41,6 +41,7 @@ export interface ProducedImage {
   seed: string;
   filter: string;
   position: string;
+  upscaled?: boolean;
 }
 
 export interface GenerateOptions {
@@ -151,6 +152,7 @@ interface DesktopImage {
   thumb?: string;
   width: number;
   height: number;
+  upscaled?: boolean;
 }
 
 async function desktopGenerate(
@@ -168,6 +170,11 @@ async function desktopGenerate(
       aspectRatio: job.params.aspectRatio,
       quality: job.params.quality,
       count: job.params.count,
+      resolution: job.params.resolution,
+      references: job.references.map((item) => ({
+        name: item.name,
+        src: item.src,
+      })),
     },
   });
   return images.map((image, index) => ({
@@ -179,6 +186,7 @@ async function desktopGenerate(
     seed: String((options.seed + index) >>> 0),
     filter: "none",
     position: "50% 50%",
+    upscaled: image.upscaled === true,
   }));
 }
 
@@ -197,6 +205,11 @@ export function exportImageTo(
   suggestedName: string,
 ): Promise<string | null> {
   return invoke<string | null>("export_image", { path, suggestedName });
+}
+
+/** Copies a locally stored image file to the system clipboard. */
+export function copyImageFile(path: string): Promise<void> {
+  return invoke("copy_image", { path });
 }
 
 export function testProviderConnection(provider: {

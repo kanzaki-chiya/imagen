@@ -141,6 +141,64 @@ async fn history_add(
         .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
 }
 
+/// Moves a history entry to the trash; its files stay on disk.
+#[tauri::command]
+async fn history_remove(
+    database: State<'_, Arc<Database>>,
+    id: String,
+) -> Result<(), BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.set_deleted(&id, true))
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
+/// Restores a trashed history entry back to the main list.
+#[tauri::command]
+async fn history_restore(
+    database: State<'_, Arc<Database>>,
+    id: String,
+) -> Result<(), BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.set_deleted(&id, false))
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
+/// Permanently deletes one trashed entry including its image files.
+#[tauri::command]
+async fn history_purge(
+    database: State<'_, Arc<Database>>,
+    id: String,
+) -> Result<(), BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.purge_history(&id))
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
+/// Permanently deletes every trashed entry; returns how many were removed.
+#[tauri::command]
+async fn history_empty_trash(
+    database: State<'_, Arc<Database>>,
+) -> Result<usize, BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.empty_trash())
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
+/// Lists trashed history entries, most recently deleted first.
+#[tauri::command]
+async fn history_deleted(
+    database: State<'_, Arc<Database>>,
+) -> Result<Value, BackendError> {
+    let database = database.inner().clone();
+    blocking(move || database.list_deleted())
+        .await
+        .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
 #[tauri::command]
 async fn history_set_favorite(
     database: State<'_, Arc<Database>>,
@@ -260,6 +318,55 @@ async fn export_image(
     .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
 }
 
+/// Copies a locally stored image file onto the system clipboard.
+#[tauri::command]
+async fn copy_image(path: String) -> Result<(), BackendError> {
+    blocking(move || {
+        let target = PathBuf::from(&path);
+        if !target.exists() {
+            return Err(BackendError::new(
+                ErrorKind::Config,
+                "The image file no longer exists.",
+            ));
+        }
+        let bytes = std::fs::read(&target).map_err(|error| {
+            BackendError::new(
+                ErrorKind::Server,
+                format!("Could not read the image file: {error}"),
+            )
+        })?;
+        let decoded = image::load_from_memory(&bytes)
+            .map_err(|_| {
+                BackendError::new(
+                    ErrorKind::InvalidResponse,
+                    "The image file could not be decoded.",
+                )
+            })?
+            .to_rgba8();
+        let (width, height) = decoded.dimensions();
+        let mut clipboard = arboard::Clipboard::new().map_err(|error| {
+            BackendError::new(
+                ErrorKind::Server,
+                format!("Clipboard is unavailable: {error}"),
+            )
+        })?;
+        clipboard
+            .set_image(arboard::ImageData {
+                width: width as usize,
+                height: height as usize,
+                bytes: std::borrow::Cow::Owned(decoded.into_raw()),
+            })
+            .map_err(|error| {
+                BackendError::new(
+                    ErrorKind::Server,
+                    format!("Could not copy the image: {error}"),
+                )
+            })
+    })
+    .await
+    .map_err(|error| BackendError::new(ErrorKind::Server, error.to_string()))?
+}
+
 #[tauri::command]
 fn store_api_key(provider_id: String, key: String) -> Result<(), BackendError> {
     keys::store(&provider_id, &key)
@@ -278,6 +385,8 @@ fn has_api_key(provider_id: String) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
@@ -296,6 +405,11 @@ pub fn run() {
             providers_upsert,
             providers_remove,
             history_add,
+            history_remove,
+            history_restore,
+            history_purge,
+            history_empty_trash,
+            history_deleted,
             history_set_favorite,
             presets_upsert,
             presets_remove,
@@ -304,6 +418,7 @@ pub fn run() {
             workspace_import,
             open_in_folder,
             export_image,
+            copy_image,
             store_api_key,
             delete_api_key,
             has_api_key,

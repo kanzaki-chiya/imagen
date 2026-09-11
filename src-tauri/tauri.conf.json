@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Imagen",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.imagen.studio",
   "build": {
     "frontendDist": "../dist",
@@ -29,9 +29,21 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxQkY0QzA5OENDQjQ4RDEKUldUUlNNdU1DVXkvY2MyekpZV3FtN2o4cFkySjVwQStsb2RnSGdIa0RYT1VoK0cxZzM0YnJJeFgK",
+      "endpoints": [
+        "https://github.com/kanzaki-chiya/imagen/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

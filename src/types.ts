@@ -61,6 +61,10 @@ export interface ImageResult {
   position: string;
   batchId: string;
   references: ReferenceImage[];
+  /** Stored file was upscaled locally to reach the requested resolution. */
+  upscaled?: boolean;
+  /** Epoch ms; set while the image sits in the trash. */
+  deletedAt?: number;
 }
 
 export interface Preset {

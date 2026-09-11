@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from "vue";
+import { computed, onMounted, shallowRef, watch } from "vue";
 import { CircleHelp, ChevronRight, LoaderCircle } from "lucide-vue-next";
 import { provideStudio } from "./composables/useStudio";
 import { useTheme } from "./composables/useTheme";
 import { useWorkspaceNavigation } from "./composables/useWorkspaceNavigation";
+import { useUpdater } from "./composables/useUpdater";
 import { useI18n } from "./i18n";
 import { usingDesktopBackend } from "./services/backend";
 import AppSidebar from "./components/layout/AppSidebar.vue";
 import AppHeader from "./components/layout/AppHeader.vue";
 import TitleBar from "./components/layout/TitleBar.vue";
 import ToastStack from "./components/ui/ToastStack.vue";
+import UpdateDialog from "./components/ui/UpdateDialog.vue";
 import BaseDialog from "./components/ui/BaseDialog.vue";
 import GenerateView from "./views/GenerateView.vue";
 import HistoryView from "./views/HistoryView.vue";
@@ -20,7 +22,12 @@ const studio = provideStudio();
 const { state, provider } = studio;
 const { preference, setTheme } = useTheme();
 const { t } = useI18n();
+const updater = useUpdater();
 const live = computed(() => usingDesktopBackend(state.preferMock));
+onMounted(() => {
+  // Silent startup check; the dialog only appears when an update exists.
+  void updater.checkForUpdates();
+});
 const queuedCount = computed(
   () => state.tasks.filter((task) => task.status === "pending").length,
 );
@@ -132,7 +139,7 @@ const shortcutCombos = [
     <ToastStack
       :toasts="state.toasts"
       @dismiss="studio.dismissToast"
-    /><BaseDialog
+    /><UpdateDialog /><BaseDialog
       v-if="showShortcuts"
       :title="t('shortcuts.title')"
       :description="t('shortcuts.sub')"

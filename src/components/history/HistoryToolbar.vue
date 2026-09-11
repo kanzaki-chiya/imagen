@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Search, Star, LayoutGrid, List, X } from "lucide-vue-next";
+import { Search, Star, Trash2, LayoutGrid, List, X } from "lucide-vue-next";
 import { useI18n } from "../../i18n";
 const { t } = useI18n();
 defineProps<{
   search: string;
-  favorites: boolean;
+  view: "all" | "favorites" | "trash";
+  trashCount: number;
   model: string;
   models: string[];
   sort: string;
@@ -13,7 +14,8 @@ defineProps<{
 }>();
 const emit = defineEmits<{
   search: [value: string];
-  favorites: [];
+  view: [value: "all" | "favorites" | "trash"];
+  emptyTrash: [];
   model: [value: string];
   sort: [value: string];
   layout: [value: "grid" | "list"];
@@ -23,15 +25,21 @@ const emit = defineEmits<{
   <div class="history-toolbar">
     <div class="history-tabs">
       <button
-        :class="{ active: !favorites }"
-        @click="favorites && emit('favorites')"
+        :class="{ active: view === 'all' }"
+        @click="view !== 'all' && emit('view', 'all')"
       >
         {{ t("history.all") }}<span class="badge">{{ total }}</span></button
       ><button
-        :class="{ active: favorites }"
-        @click="!favorites && emit('favorites')"
+        :class="{ active: view === 'favorites' }"
+        @click="view !== 'favorites' && emit('view', 'favorites')"
       >
-        <Star :size="13" />{{ t("history.favorites") }}
+        <Star :size="13" />{{ t("history.favorites") }}</button
+      ><button
+        :class="{ active: view === 'trash' }"
+        @click="view !== 'trash' && emit('view', 'trash')"
+      >
+        <Trash2 :size="13" />{{ t("history.trash")
+        }}<span v-if="trashCount" class="badge">{{ trashCount }}</span>
       </button>
     </div>
     <div class="history-controls">
@@ -67,6 +75,13 @@ const emit = defineEmits<{
         <option value="newest">{{ t("history.newest") }}</option>
         <option value="oldest">{{ t("history.oldest") }}</option>
       </select>
+      <button
+        v-if="view === 'trash' && trashCount"
+        class="empty-trash"
+        @click="emit('emptyTrash')"
+      >
+        <Trash2 :size="12" />{{ t("history.emptyTrash") }}
+      </button>
       <div class="segmented layout-switch">
         <button
           :class="{ selected: layout === 'grid' }"
@@ -148,6 +163,19 @@ const emit = defineEmits<{
   right: 5px;
   top: 8px;
   color: var(--text-muted);
+}
+.empty-trash {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger, #b3402e);
+  font-size: 10px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 5px;
+}
+.empty-trash:hover {
+  background: var(--hover);
 }
 .layout-switch {
   height: 31px;

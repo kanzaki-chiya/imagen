@@ -10,8 +10,10 @@ import {
   ChevronRight,
   Sparkles,
   ListTodo,
+  RefreshCw,
 } from "lucide-vue-next";
 import { useStudio } from "../composables/useStudio";
+import { useUpdater } from "../composables/useUpdater";
 import { backendAvailable } from "../services/backend";
 import type { Locale } from "../i18n";
 import { useI18n } from "../i18n";
@@ -28,7 +30,16 @@ const languages: { id: Locale; label: string }[] = [
   { id: "en", label: "English" },
 ];
 const studio = useStudio();
+const updater = useUpdater();
 const liveBackend = backendAvailable();
+async function checkUpdates() {
+  const result = await updater.checkForUpdates();
+  if (result === "latest") studio.notify(t("update.latest"));
+  else if (result === "failed") studio.notify(t("update.failed"), "error");
+  else if (result === "unavailable")
+    studio.notify(t("update.unavailable"), "info");
+  // "update" opens the shared update dialog automatically.
+}
 const section = shallowRef("providers");
 const sections = [
   { id: "providers", icon: PlugZap },
@@ -196,6 +207,23 @@ const sections = [
           <div class="about-tech">
             <span>Vue 3</span><span>TypeScript</span><span>Vite</span
             ><span>Tauri</span>
+          </div>
+          <div class="preference-row update-row">
+            <div>
+              <h3>{{ t("settings.about.updates") }}</h3>
+              <p>{{ t("settings.about.updatesDesc") }}</p>
+            </div>
+            <button
+              class="btn"
+              :disabled="updater.checking.value"
+              @click="checkUpdates"
+            >
+              <RefreshCw :size="14" />{{
+                updater.checking.value
+                  ? t("update.checking")
+                  : t("update.check")
+              }}
+            </button>
           </div>
         </section>
       </div>

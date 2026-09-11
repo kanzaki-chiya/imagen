@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection};
 use serde_json::{json, Value};
@@ -39,7 +40,9 @@ CREATE TABLE IF NOT EXISTS history (
     filter TEXT NOT NULL DEFAULT 'none',
     position TEXT NOT NULL DEFAULT '50% 50%',
     batch_id TEXT NOT NULL DEFAULT '',
-    refs TEXT NOT NULL DEFAULT '[]'
+    refs TEXT NOT NULL DEFAULT '[]',
+    upscaled INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS history_created ON history (created_at DESC);
 CREATE TABLE IF NOT EXISTS presets (
@@ -67,6 +70,39 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS tasks_created ON tasks (created_at DESC);
 ";
 
+/// Trashed rows are kept this long before their files are purged.
+const TRASH_RETENTION_SECS: i64 = 30 * 24 * 60 * 60;
+
+fn now_secs() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+fn ensure_column(
+    conn: &Connection,
+    table: &str,
+    name: &str,
+    declaration: &str,
+) -> Result<(), BackendError> {
+    let mut statement = conn
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(db_error)?;
+    let exists = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(db_error)?
+        .any(|column| column.map(|value| value == name).unwrap_or(false));
+    if !exists {
+        conn.execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {declaration}"),
+            [],
+        )
+        .map_err(db_error)?;
+    }
+    Ok(())
+}
+
 fn db_error(error: impl std::fmt::Display) -> BackendError {
     BackendError::new(
         ErrorKind::Server,
@@ -84,9 +120,20 @@ impl Database {
         conn.pragma_update(None, "journal_mode", "WAL")
             .map_err(db_error)?;
         conn.execute_batch(SCHEMA).map_err(db_error)?;
-        Ok(Self {
+        // Columns added after the initial schema need an ALTER TABLE for
+        // existing databases; CREATE TABLE above only covers fresh installs.
+        ensure_column(&conn, "history", "deleted_at", "deleted_at INTEGER")?;
+        ensure_column(
+            &conn,
+            "history",
+            "upscaled",
+            "upscaled INTEGER NOT NULL DEFAULT 0",
+        )?;
+        let database = Self {
             conn: Mutex::new(conn),
-        })
+        };
+        database.purge_stale_trash(TRASH_RETENTION_SECS)?;
+        Ok(database)
     }
 
     fn get_meta(conn: &Connection, key: &str) -> Option<Value> {
@@ -139,47 +186,75 @@ impl Database {
         Ok(Value::Array(providers))
     }
 
+    const HISTORY_COLUMNS: &str = "id, title, src, path, thumb, prompt, params, created_at,
+            favorite, width, height, seed, filter, position, batch_id, refs,
+            upscaled, deleted_at";
+
+    fn map_history_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
+        Ok(json!({
+            "id": row.get::<_, String>(0)?,
+            "title": row.get::<_, String>(1)?,
+            "src": row.get::<_, String>(2)?,
+            "path": row.get::<_, Option<String>>(3)?,
+            "thumb": row.get::<_, Option<String>>(4)?,
+            "prompt": row.get::<_, String>(5)?,
+            "params": serde_json::from_str::<Value>(
+                &row.get::<_, String>(6)?
+            )
+            .unwrap_or_else(|_| json!({})),
+            "createdAt": row.get::<_, String>(7)?,
+            "favorite": row.get::<_, i64>(8)? != 0,
+            "width": row.get::<_, i64>(9)?,
+            "height": row.get::<_, i64>(10)?,
+            "seed": row.get::<_, String>(11)?,
+            "filter": row.get::<_, String>(12)?,
+            "position": row.get::<_, String>(13)?,
+            "batchId": row.get::<_, String>(14)?,
+            "references": serde_json::from_str::<Value>(
+                &row.get::<_, String>(15)?
+            )
+            .unwrap_or_else(|_| json!([])),
+            "upscaled": row.get::<_, i64>(16)? != 0,
+            // Milliseconds since epoch; null while the row is not trashed.
+            "deletedAt": row.get::<_, Option<i64>>(17)?.map(|secs| secs * 1000),
+        }))
+    }
+
     fn list_history(conn: &Connection) -> Result<Value, BackendError> {
         let mut statement = conn
-            .prepare(
-                "SELECT id, title, src, path, thumb, prompt, params, created_at,
-                        favorite, width, height, seed, filter, position, batch_id, refs
-                 FROM history ORDER BY created_at DESC",
-            )
+            .prepare(&format!(
+                "SELECT {} FROM history WHERE deleted_at IS NULL
+                 ORDER BY created_at DESC",
+                Self::HISTORY_COLUMNS
+            ))
             .map_err(db_error)?;
         let rows = statement
-            .query_map([], |row| {
-                Ok(json!({
-                    "id": row.get::<_, String>(0)?,
-                    "title": row.get::<_, String>(1)?,
-                    "src": row.get::<_, String>(2)?,
-                    "path": row.get::<_, Option<String>>(3)?,
-                    "thumb": row.get::<_, Option<String>>(4)?,
-                    "prompt": row.get::<_, String>(5)?,
-                    "params": serde_json::from_str::<Value>(
-                        &row.get::<_, String>(6)?
-                    )
-                    .unwrap_or_else(|_| json!({})),
-                    "createdAt": row.get::<_, String>(7)?,
-                    "favorite": row.get::<_, i64>(8)? != 0,
-                    "width": row.get::<_, i64>(9)?,
-                    "height": row.get::<_, i64>(10)?,
-                    "seed": row.get::<_, String>(11)?,
-                    "filter": row.get::<_, String>(12)?,
-                    "position": row.get::<_, String>(13)?,
-                    "batchId": row.get::<_, String>(14)?,
-                    "references": serde_json::from_str::<Value>(
-                        &row.get::<_, String>(15)?
-                    )
-                    .unwrap_or_else(|_| json!([])),
-                }))
-            })
+            .query_map([], Self::map_history_row)
             .map_err(db_error)?;
         let mut history = Vec::new();
         for row in rows {
             history.push(row.map_err(db_error)?);
         }
         Ok(Value::Array(history))
+    }
+
+    pub fn list_deleted(&self) -> Result<Value, BackendError> {
+        let conn = self.conn.lock().unwrap();
+        let mut statement = conn
+            .prepare(&format!(
+                "SELECT {} FROM history WHERE deleted_at IS NOT NULL
+                 ORDER BY deleted_at DESC",
+                Self::HISTORY_COLUMNS
+            ))
+            .map_err(db_error)?;
+        let rows = statement
+            .query_map([], Self::map_history_row)
+            .map_err(db_error)?;
+        let mut deleted = Vec::new();
+        for row in rows {
+            deleted.push(row.map_err(db_error)?);
+        }
+        Ok(Value::Array(deleted))
     }
 
     fn list_presets(conn: &Connection) -> Result<Value, BackendError> {
@@ -339,8 +414,8 @@ impl Database {
         conn.execute(
             "INSERT INTO history
              (id, title, src, path, thumb, prompt, params, created_at, favorite,
-              width, height, seed, filter, position, batch_id, refs)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+              width, height, seed, filter, position, batch_id, refs, upscaled)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
              ON CONFLICT(id) DO UPDATE SET
                 title = excluded.title,
                 src = excluded.src,
@@ -356,7 +431,8 @@ impl Database {
                 filter = excluded.filter,
                 position = excluded.position,
                 batch_id = excluded.batch_id,
-                refs = excluded.refs",
+                refs = excluded.refs,
+                upscaled = excluded.upscaled",
             params![
                 image.get("id").and_then(Value::as_str).unwrap_or(""),
                 image.get("title").and_then(Value::as_str).unwrap_or(""),
@@ -392,6 +468,10 @@ impl Database {
                     .get("references")
                     .map(|value| serde_json::to_string(value).unwrap_or_default())
                     .unwrap_or_else(|| "[]".into()),
+                image
+                    .get("upscaled")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false) as i64,
             ],
         )
         .map(|_| ())
@@ -414,6 +494,80 @@ impl Database {
         )
         .map(|_| ())
         .map_err(db_error)
+    }
+
+    /// Soft-delete: keeps the row and its files so the trash can restore them.
+    pub fn set_deleted(&self, id: &str, deleted: bool) -> Result<(), BackendError> {
+        let conn = self.conn.lock().unwrap();
+        let timestamp = if deleted { Some(now_secs()) } else { None };
+        conn.execute(
+            "UPDATE history SET deleted_at = ?2 WHERE id = ?1",
+            params![id, timestamp],
+        )
+        .map(|_| ())
+        .map_err(db_error)
+    }
+
+    /// Removes rows and deletes their image and thumbnail files.
+    /// `filter` picks which rows go: a specific id or everything trashed.
+    fn purge_where(
+        conn: &Connection,
+        clause: &str,
+        values: &[&dyn rusqlite::ToSql],
+    ) -> Result<usize, BackendError> {
+        let mut statement = conn
+            .prepare(&format!(
+                "SELECT path, thumb FROM history WHERE {clause}"
+            ))
+            .map_err(db_error)?;
+        let paths: Vec<Option<String>> = statement
+            .query_map(values, |row| {
+                Ok(vec![
+                    row.get::<_, Option<String>>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                ])
+            })
+            .map_err(db_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db_error)?
+            .into_iter()
+            .flatten()
+            .collect();
+        let removed = conn
+            .execute(
+                &format!("DELETE FROM history WHERE {clause}"),
+                values,
+            )
+            .map_err(db_error)?;
+        for path in paths.into_iter().flatten() {
+            let _ = std::fs::remove_file(path);
+        }
+        Ok(removed)
+    }
+
+    /// Permanently deletes one trashed image: row, file and thumbnail.
+    /// Refuses rows that were never moved to the trash.
+    pub fn purge_history(&self, id: &str) -> Result<(), BackendError> {
+        let conn = self.conn.lock().unwrap();
+        Self::purge_where(
+            &conn,
+            "id = ?1 AND deleted_at IS NOT NULL",
+            &[&id],
+        )
+        .map(|_| ())
+    }
+
+    /// Permanently deletes every trashed image. Returns how many were removed.
+    pub fn empty_trash(&self) -> Result<usize, BackendError> {
+        let conn = self.conn.lock().unwrap();
+        Self::purge_where(&conn, "deleted_at IS NOT NULL", &[])
+    }
+
+    /// Drops trashed rows past the retention window; runs on startup.
+    fn purge_stale_trash(&self, retention_secs: i64) -> Result<(), BackendError> {
+        let conn = self.conn.lock().unwrap();
+        let cutoff = now_secs() - retention_secs;
+        Self::purge_where(&conn, "deleted_at < ?1", &[&cutoff]).map(|_| ())
     }
 
     fn upsert_preset(conn: &Connection, preset: &Value) -> Result<(), BackendError> {

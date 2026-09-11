@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Star, ArrowUpRight, SearchX } from "lucide-vue-next";
+import { Star, ArrowUpRight, SearchX, Trash2, Undo2 } from "lucide-vue-next";
 import type { ImageResult } from "../../types";
 import ResultImage from "../ui/ResultImage.vue";
 import { useI18n } from "../../i18n";
@@ -7,19 +7,28 @@ const { t, tp } = useI18n();
 defineProps<{
   groups: { label: string; images: ImageResult[] }[];
   layout: "grid" | "list";
+  trash?: boolean;
 }>();
 const emit = defineEmits<{
   open: [image: ImageResult];
   favorite: [id: string];
+  restore: [image: ImageResult];
+  purge: [image: ImageResult];
   reset: [];
 }>();
 </script>
 <template>
   <div v-if="!groups.length" class="empty-state history-empty">
     <SearchX :size="34" />
-    <h3>{{ t("history.emptyTitle") }}</h3>
-    <p>{{ t("history.emptyBody") }}</p>
-    <button class="btn" @click="emit('reset')">{{ t("history.clearFilters") }}</button>
+    <template v-if="trash">
+      <h3>{{ t("history.trashEmptyTitle") }}</h3>
+      <p>{{ t("history.trashEmptyBody") }}</p>
+    </template>
+    <template v-else>
+      <h3>{{ t("history.emptyTitle") }}</h3>
+      <p>{{ t("history.emptyBody") }}</p>
+      <button class="btn" @click="emit('reset')">{{ t("history.clearFilters") }}</button>
+    </template>
   </div>
   <section
     v-for="group in groups"
@@ -68,7 +77,24 @@ const emit = defineEmits<{
           >
           <p class="list-prompt">{{ image.prompt }}</p>
         </div>
+        <div v-if="trash" class="trash-actions">
+          <button
+            class="favorite-button"
+            :aria-label="t('history.restore', { title: image.title })"
+            @click="emit('restore', image)"
+          >
+            <Undo2 :size="14" />
+          </button>
+          <button
+            class="favorite-button purge"
+            :aria-label="t('history.deleteForever', { title: image.title })"
+            @click="emit('purge', image)"
+          >
+            <Trash2 :size="14" />
+          </button>
+        </div>
         <button
+          v-else
           class="favorite-button"
           :class="{ favorited: image.favorite }"
           :aria-label="
@@ -199,6 +225,19 @@ const emit = defineEmits<{
 .favorite-button:hover {
   color: var(--accent);
 }
+.trash-actions {
+  position: absolute;
+  right: 0;
+  bottom: 20px;
+  display: flex;
+  gap: 7px;
+}
+.trash-actions .favorite-button {
+  position: static;
+}
+.favorite-button.purge:hover {
+  color: var(--danger);
+}
 .list-prompt {
   display: none;
 }
@@ -237,6 +276,10 @@ const emit = defineEmits<{
   max-width: 800px;
 }
 .list-layout .favorite-button {
+  bottom: auto;
+  top: 20px;
+}
+.list-layout .trash-actions {
   bottom: auto;
   top: 20px;
 }
