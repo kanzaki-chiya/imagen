@@ -1,59 +1,107 @@
 # Imagen
 
-一方本地优先的 AI 图像创作桌面应用 —— Vue 3 + TypeScript 前端，Tauri 2 + Rust 本地后端，支持 OpenAI / OpenAI 兼容图像接口的真实生成，也内置不联网的模拟模式。
+一款轻量、安全、本地优先的 AI 图像创作桌面应用。基于 Vue 3 + TypeScript 与 Tauri 2 + Rust 构建，支持接入 OpenAI 及各类兼容协议（如自建网关、中转服务）进行高质量图像生成，同时内置免联网的离线模拟模式。
 
-[English README → README_EN.md](README_EN.md)
+[English](README_EN.md) · [简体中文](README.md)
 
-## 功能
+---
 
-- **生成**：提示词 + 负面提示词，选择服务商 / 模型 / 方向与宽高比（横屏 16:9、3:2、4:3；竖屏 9:16、2:3、3:4；方形 1:1）/ 分辨率（1K–4K）/ 质量 / 数量（1–4），`Ctrl + Enter` 生成，支持取消、失败重试。
-- **任务队列**：生成中再次提交会排队（并发 1，上限 8），Settings → 任务 查看状态或单独取消；重启后未完成的任务标记为「已中断」。
-- **历史**：搜索、模型筛选、收藏、网格 / 列表视图、按日期分组；复用提示词与参数；详情弹窗展示完整参数与参考图；可打开所在文件夹，导出走系统另存为对话框。
-- **预设**：应用、保存、编辑、删除；删除前需确认。
-- **服务商**：多 Provider（OpenAI / 兼容 / Custom），从 `{baseUrl}/models` 拉取模型列表，连接测试与生成请求分开；按协议能力禁用不支持的参数（Seed、引导强度、负面提示词、参考图仅记录）。
-- **参考图**：上传 ≤3 张 PNG / JPEG / WebP（每张 ≤10 MB），可设参考强度；随生成记录保存。
-- **主题**：Light / Dark / System，默认跟随系统。
-- **语言**：Settings → 外观 切换 中文 / English，默认中文，选择保存在 localStorage。
+## 核心特性
 
-## 本地数据
+- **灵活多样的生成控制**
+  - 支持正向提示词与负面提示词，提供快捷键一键触发生成。
+  - 覆盖丰富画面比例：横屏（16:9、3:2、4:3）、竖屏（9:16、2:3、3:4）与正方形（1:1）。
+  - 支持分辨率档位（1K / 2K / 4K）、质量模式与单次批量数量（1～4 张）调节。
+  - 支持上传至多 3 张参考图（PNG / JPEG / WebP，每张 ≤10MB），自由设定参考强度权重。
+- **多服务商与自适应协议**
+  - 支持 OpenAI 官方及兼容第三方图像服务商（支持自定义端点配置）。
+  - 自动从 `{baseUrl}/models` 探测拉取可用模型列表，连接测试与生成调度解耦。
+  - 依据服务商协议能力自动处理参数可用性（不支持的参数置灰或仅作元数据记录）。
+- **后台任务队列**
+  - 自动化并发控制（单任务串行执行，队列上限 8 个），支持生成中随时追加任务。
+  - 任务状态可视化监控，支持单独取消未执行任务；应用重启后未完成任务自动标记为「已中断」。
+- **历史记录与资产管理**
+  - 历史作品按日期自动归类，支持瀑布流网格与紧凑列表双重视图。
+  - 支持关键词检索、按模型过滤、收藏标记与一键复用生成参数。
+  - 详情弹窗完整回溯元数据与参考图，支持在系统文件管理器中直接定位原图或另存为导出。
+- **创意预设库**
+  - 内置丰富预设模版，支持自定义保存常用参数组合与提示词方案，一键快速复用。
+- **沉浸式现代桌面体验**
+  - 采用无边框设计与自定义系统标题栏，深度适配 1080p / 1440p 桌面显示。
+  - 自适应响应式布局：窗口缩小时侧边栏自动收缩为紧凑图标，参数面板切换为侧滑抽屉。
+  - 原生支持简体中文与英文无缝切换，提供浅色（Light）、深色（Dark）及跟随系统（System）主题。
 
-桌面端数据保存在应用数据目录（`%APPDATA%\com.imagen.studio\`）：
+## 安全与本地存储
 
-- `imagen.db` — SQLite（WAL 模式）：服务商配置、历史记录、预设、任务、会话状态。
-- `images/` — 生成的原图；`thumbs/` — 384px 缩略图（历史网格用）。
-- API Key 存 **Windows 凭据管理器**（service `com.imagen.studio`），数据库与日志不记录明文。
+Imagen 严格遵循本地优先（Local-first）原则，确保用户资产与凭据的绝对安全：
 
-浏览器开发模式下数据在 IndexedDB；首次以桌面端启动时自动迁移到 SQLite。清理站点数据会移除浏览器端内容。
+- **系统级凭据隔离**：API Key 仅存放于系统原生 **Windows 凭据管理器**（Service: `com.imagen.studio`），绝不明文写入数据库或日志文件。
+- **自包含本地数据库**：应用数据（服务商配置、生成元数据、任务队列与预设等）统一存储在本地 SQLite 数据库（启用 WAL 高性能日志模式）。
+- **零外部资源依赖**：生成的原图与 384px 缩略图均沉淀于本地应用目录（`%APPDATA%\com.imagen.studio\`），通过安全资产协议加载展示，不依赖任何第三方 CDN。
+- **开箱即用模拟模式**：开发环境与无网络环境下自动提供本地 Mock 生成场景，便于界面调试与功能体验。
 
-## 运行
+## 常用快捷键
 
-需要 Node.js 22.12+（建议 24 LTS）与 npm。
+| 快捷键 | 功能说明 |
+| :--- | :--- |
+| `Ctrl + Enter` | 提交生成 / 重试生成 |
+| `Ctrl + Alt + 1` | 切换至「创作」工作区 |
+| `Ctrl + Alt + 2` | 切换至「历史」工作区 |
+| `Ctrl + Alt + 3` | 切换至「预设」工作区 |
+| `Ctrl + Alt + 4` | 切换至「设置」工作区 |
+| `←` / `→` | 切换浏览多图结果 |
+| `Esc` | 关闭当前弹窗或预览抽屉 |
+| `?` | 打开快捷键帮助面板 |
+
+## 快速上手与本地开发
+
+### 环境依赖
+
+- **Node.js**：22.12+（推荐 Node.js 24 LTS）及 npm
+- **Rust 工具链**：`stable-x86_64-pc-windows-msvc`（桌面端开发与打包需用）
+- **WebView2**：Windows 10 / 11 自带运行时
+
+### 安装依赖
 
 ```sh
 npm install
-npm run dev        # http://127.0.0.1:1420 ，浏览器内为模拟模式
 ```
 
-## 桌面应用（Tauri 2 + Rust）
+### 启动开发
 
-需要 Rust 工具链（stable-x86_64-pc-windows-msvc）与 WebView2。
+- **浏览器模拟模式**（轻量前端开发，无需 Rust 环境）：
+  ```sh
+  npm run dev
+  # 访问 http://127.0.0.1:1420
+  ```
+- **桌面原生调试**（全功能桌面模式）：
+  ```sh
+  npm run desktop
+  ```
+
+### 生产打包
+
+执行以下命令即可一键完成前端构建并输出 Windows 原生安装程序（MSI 与 NSIS）：
 
 ```sh
-npm run desktop    # tauri dev，自动复用已启动的 Vite
-npx tauri build    # 产出 MSI + NSIS 安装包（src-tauri/target/release/bundle/）
+npx tauri build
 ```
 
-桌面模式下前端通过统一接口调用 Rust 命令：`generate_images`、`cancel_generation`、`test_connection`、SQLite 工作区读写与 keyring 密钥管理。Rust 端按 OpenAI Images API 兼容协议向 Provider 发送 `POST {baseUrl}/images/generations`，图片写入 `images/` 后经 asset 协议回显。
+打包产物位于 `src-tauri/target/release/bundle/`。
 
-## 测试
+### 执行测试
 
 ```sh
-npm test                    # 前端参数校验 / Mock 场景（node --test）
-cd src-tauri && cargo test  # 本地模拟 Provider 端到端：成功、限流、错误、损坏图片
+# 运行前端参数校验与场景逻辑测试
+npm test
+
+# 运行 Rust 后端接口与异常恢复测试
+cd src-tauri && cargo test
 ```
 
-`scripts/` 内含辅助工具：`i18n-check.mjs`（双语词条完整性检查）、`db-inspect.py`（查看 SQLite 内容）、`dev-or-attach.mjs`（复用已启动的 Vite dev server）。
+## 技术架构
 
-## 设计
-
-目标分辨率 1080p / 1440p 桌面窗口；窄窗口下侧栏收缩为图标、参数面板收为抽屉。页面资源使用相对路径（`base: "./"`），不依赖 CDN。
+- **前端技术栈**：Vue 3 + TypeScript + Vite + Lucide Icons + 自定义设计系统
+- **桌面框架**：Tauri 2 + Rust
+- **本地存储与安全**：SQLite (WAL) + Windows Credential Manager
+- **协议兼容**：OpenAI Images API 兼容标准 (`POST {baseUrl}/images/generations`)
