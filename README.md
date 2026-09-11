@@ -1,23 +1,37 @@
 # Imagen
 
-一个本地优先的 AI 图像创作前端，使用 Vue 3、TypeScript 和 Vite。以图像画布为中心，提供 Generate、History、Presets 和 Settings 四个工作区，以及完整的 Light / Dark / System 主题。
+一方本地优先的 AI 图像创作桌面应用 —— Vue 3 + TypeScript 前端，Tauri 2 + Rust 本地后端，支持 OpenAI / OpenAI 兼容图像接口的真实生成，也内置不联网的模拟模式。
 
-## 启动
+[English README → README_EN.md](README_EN.md)
 
-需要 Node.js 22.12+（或 24 LTS）和 npm。
+## 功能
+
+- **生成**：提示词 + 负面提示词，选择服务商 / 模型 / 方向与宽高比（横屏 16:9、3:2、4:3；竖屏 9:16、2:3、3:4；方形 1:1）/ 分辨率（1K–4K）/ 质量 / 数量（1–4），`Ctrl + Enter` 生成，支持取消、失败重试。
+- **任务队列**：生成中再次提交会排队（并发 1，上限 8），Settings → 任务 查看状态或单独取消；重启后未完成的任务标记为「已中断」。
+- **历史**：搜索、模型筛选、收藏、网格 / 列表视图、按日期分组；复用提示词与参数；详情弹窗展示完整参数与参考图；可打开所在文件夹，导出走系统另存为对话框。
+- **预设**：应用、保存、编辑、删除；删除前需确认。
+- **服务商**：多 Provider（OpenAI / 兼容 / Custom），从 `{baseUrl}/models` 拉取模型列表，连接测试与生成请求分开；按协议能力禁用不支持的参数（Seed、引导强度、负面提示词、参考图仅记录）。
+- **参考图**：上传 ≤3 张 PNG / JPEG / WebP（每张 ≤10 MB），可设参考强度；随生成记录保存。
+- **主题**：Light / Dark / System，默认跟随系统。
+- **语言**：Settings → 外观 切换 中文 / English，默认中文，选择保存在 localStorage。
+
+## 本地数据
+
+桌面端数据保存在应用数据目录（`%APPDATA%\com.imagen.studio\`）：
+
+- `imagen.db` — SQLite（WAL 模式）：服务商配置、历史记录、预设、任务、会话状态。
+- `images/` — 生成的原图；`thumbs/` — 384px 缩略图（历史网格用）。
+- API Key 存 **Windows 凭据管理器**（service `com.imagen.studio`），数据库与日志不记录明文。
+
+浏览器开发模式下数据在 IndexedDB；首次以桌面端启动时自动迁移到 SQLite。清理站点数据会移除浏览器端内容。
+
+## 运行
+
+需要 Node.js 22.12+（建议 24 LTS）与 npm。
 
 ```sh
 npm install
-npm run dev
-```
-
-访问 `http://127.0.0.1:1420`。
-
-```sh
-npm run build   # TypeScript 检查与生产构建
-npm run preview # 预览生产构建
-npm test        # 参数与 Mock 服务校验
-cd src-tauri && cargo test  # 本地模拟 Provider 端到端校验（成功/限流/错误/损坏图片）
+npm run dev        # http://127.0.0.1:1420 ，浏览器内为模拟模式
 ```
 
 ## 桌面应用（Tauri 2 + Rust）
@@ -25,42 +39,21 @@ cd src-tauri && cargo test  # 本地模拟 Provider 端到端校验（成功/限
 需要 Rust 工具链（stable-x86_64-pc-windows-msvc）与 WebView2。
 
 ```sh
-npm run desktop   # 等价于 npx tauri dev，自动先启动 Vite
+npm run desktop    # tauri dev，自动复用已启动的 Vite
+npx tauri build    # 产出 MSI + NSIS 安装包（src-tauri/target/release/bundle/）
 ```
 
-桌面模式下生成走 Rust 后端：前端通过统一接口调用 `generate_images` 命令，由 Rust 以 OpenAI Images API 兼容协议请求 Provider（POST `{baseUrl}/images/generations`），生成的图片写入应用数据目录 `…/com.imagen.studio/images/`，再经 asset 协议回显到画布。API Key 随每次请求传递给 Rust，不落盘、不进持久存储。
+桌面模式下前端通过统一接口调用 Rust 命令：`generate_images`、`cancel_generation`、`test_connection`、SQLite 工作区读写与 keyring 密钥管理。Rust 端按 OpenAI Images API 兼容协议向 Provider 发送 `POST {baseUrl}/images/generations`，图片写入 `images/` 后经 asset 协议回显。
 
-- **Mock / Real 切换**：Settings → Workspace → Always use mock generation；浏览器环境始终为 Mock。
-- **真实连接测试**：Provider 编辑器在桌面模式下请求 `{baseUrl}/models` 并返回模型数与延迟。
-- **取消**：点击取消会向 Rust 发送 `cancel_generation`，中断进行中的请求并清理未完成的文件。
-- **错误结构**：`{ kind: config | auth | rate_limit | network | server | invalid_response | cancelled, message, status? }`。
-- **OpenAI 参数映射**：1:1→1024×1024、3:2 与 16:9→1536×1024、2:3→1024×1536；Quality 映射 gpt-image（low/medium/high/auto）与 dall-e（standard/hd）。seed、guidance、negative prompt 与参考图会被记录但不发送。
+## 测试
 
-## 使用
+```sh
+npm test                    # 前端参数校验 / Mock 场景（node --test）
+cd src-tauri && cargo test  # 本地模拟 Provider 端到端：成功、限流、错误、损坏图片
+```
 
-- **Generate**：编辑 Prompt / Negative prompt，选择 Provider、模型、比例、分辨率、质量、图片数量及种子，点击生成或按 `Ctrl + Enter`。支持取消与失败重试。
-- **画布**：切换输出、收藏、缩放、双图比较、全屏查看、检查元数据，以及导出 PNG / JPEG / WebP。聚焦画布后可用方向键切换。
-- **参考图**：点击上传或拖入 PNG、JPEG、WebP，最多 3 张，每张不超过 10 MB，可调整参考强度。
-- **History**：按 Prompt 搜索、模型筛选、收藏过滤和时间排序；支持网格 / 列表视图，并可恢复历史 Prompt、参数和参考图。
-- **Presets**：应用、创建、编辑和删除常用提示词及参数模板。删除前需确认。
-- **Settings**：编辑 OpenAI、OpenAI Compatible、Gemini 和 Custom Provider，支持自定义模型与模拟连接测试。API Key 只在当前会话内存中保留，不写入持久存储。
-- **主题**：顶部随时切换 Light / Dark / System，默认跟随系统。
-- **语言**：Settings → Appearance 切换 中文 / English，默认中文，选择会保存在 localStorage。
-- **任务**：生成中再次生成会进入队列（并发 1，上限 8）；Settings → 任务查看状态或取消，重启后未完成任务标记为「已中断」。
-- **本地数据**：桌面端保存在应用数据目录 `imagen.db`（SQLite）；API Key 存系统凭据管理器，不落盘。浏览器端仍在 IndexedDB。
-- **文件**：桌面端历史详情可「打开所在文件夹」，下载走原生另存为对话框。
-- **快捷键**：`Ctrl + Alt + 1/2/3/4` 切换工作区，`?` 查看快捷键。
+`scripts/` 内含辅助工具：`i18n-check.mjs`（双语词条完整性检查）、`db-inspect.py`（查看 SQLite 内容）、`dev-or-attach.mjs`（复用已启动的 Vite dev server）。
 
-## Mock 模式
+## 设计
 
-所有 Provider 和图像生成均为模拟，不发送真实 API 请求，也不需要真实 API Key。四张随应用提供的 AI 演示图可离线使用。Prompt 的场景词选择样图，Seed 改变色彩处理；比例、分辨率、文件格式作用于导出图片。质量、Guidance、Negative prompt 与参考图会被记录，但不调用 AI 模型。
-
-在 **Settings → Workspace → Simulate a failed generation** 中，可以让下一次生成模拟超时。重试随后正常完成。在 Provider Base URL 中加入 `fail` 可测试连接失败状态。
-
-桌面端数据在应用数据目录（`imagen.db` SQLite + `images/` + `thumbs/`）；API Key 在系统凭据存储。浏览器端为 IndexedDB，首次启动桌面端会自动迁移。主题偏好保存在 localStorage。清理站点数据会移除浏览器内容。存储不可用时会显示提示，当前会话仍可使用。
-
-## 桌面与部署
-
-主要适配 1080p / 1440p 桌面窗口；较窄窗口下导航缩为图标，参数面板变为可打开的抽屉。页面采用本地 hash 导航、相对静态资源路径，不依赖 CDN 或服务端路由。
-
-生产静态文件输出到 `dist/`。桌面外壳位于 `src-tauri/`（Tauri 2 + Rust）；`npx tauri build` 产出 Windows 安装包（暂未验证）。
+目标分辨率 1080p / 1440p 桌面窗口；窄窗口下侧栏收缩为图标、参数面板收为抽屉。页面资源使用相对路径（`base: "./"`），不依赖 CDN。
