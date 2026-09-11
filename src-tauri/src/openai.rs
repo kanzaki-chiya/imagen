@@ -141,20 +141,24 @@ fn http_error(status: StatusCode, body: &str) -> BackendError {
 }
 
 fn openai_size(model: &str, aspect_ratio: &str) -> (u32, u32, &'static str) {
+    let portrait = matches!(aspect_ratio, "9:16" | "2:3" | "3:4");
+    let square = aspect_ratio == "1:1";
     if model.starts_with("dall-e-3") {
-        match aspect_ratio {
-            "1:1" => (1024, 1024, "1024x1024"),
-            "2:3" => (1024, 1792, "1024x1792"),
-            _ => (1792, 1024, "1792x1024"),
+        if square {
+            (1024, 1024, "1024x1024")
+        } else if portrait {
+            (1024, 1792, "1024x1792")
+        } else {
+            (1792, 1024, "1792x1024")
         }
     } else if model.starts_with("dall-e-2") {
         (1024, 1024, "1024x1024")
+    } else if square {
+        (1024, 1024, "1024x1024")
+    } else if portrait {
+        (1024, 1536, "1024x1536")
     } else {
-        match aspect_ratio {
-            "1:1" => (1024, 1024, "1024x1024"),
-            "2:3" => (1024, 1536, "1024x1536"),
-            _ => (1536, 1024, "1536x1024"),
-        }
+        (1536, 1024, "1536x1024")
     }
 }
 

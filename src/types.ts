@@ -1,6 +1,13 @@
 export type Workspace = "generate" | "history" | "presets" | "settings";
 export type Theme = "light" | "dark" | "system";
-export type AspectRatio = "1:1" | "3:2" | "2:3" | "16:9";
+export type AspectRatio =
+  | "1:1"
+  | "3:2"
+  | "4:3"
+  | "16:9"
+  | "9:16"
+  | "2:3"
+  | "3:4";
 export type Quality = "Standard" | "High" | "Auto";
 export type ConnectionStatus = "connected" | "untested" | "error" | "testing";
 

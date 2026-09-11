@@ -28,6 +28,9 @@ test("dimensions preserve aspect ratio and scale for 2K and 4K", () => {
   assert.deepEqual(dimensions("1:1", "2K"), { width: 2048, height: 2048 });
   assert.deepEqual(dimensions("16:9", "4K"), { width: 6144, height: 3456 });
   assert.deepEqual(dimensions("1:1", "4K"), { width: 4096, height: 4096 });
+  assert.deepEqual(dimensions("4:3", "1K"), { width: 1280, height: 960 });
+  assert.deepEqual(dimensions("9:16", "1K"), { width: 864, height: 1536 });
+  assert.deepEqual(dimensions("3:4", "2K"), { width: 1920, height: 2560 });
 });
 test("prompt validation rejects empty or excessively long prompts", () => {
   assert.ok(validateGeneration("   ", params));

@@ -93,16 +93,34 @@ const caps = computed(() => capabilitiesFor(provider.value));
 const size = computed(() =>
   dimensions(props.params.aspectRatio, props.params.resolution),
 );
-const aspects: {
-  value: AspectRatio;
-  width: number;
-  height: number;
-}[] = [
-  { value: "1:1", width: 15, height: 15 },
-  { value: "3:2", width: 19, height: 13 },
-  { value: "2:3", width: 13, height: 19 },
-  { value: "16:9", width: 21, height: 12 },
-];
+type Orientation = "landscape" | "portrait" | "square";
+const ratioOptions: Record<
+  Orientation,
+  { value: AspectRatio; width: number; height: number }[]
+> = {
+  landscape: [
+    { value: "16:9", width: 21, height: 12 },
+    { value: "3:2", width: 19, height: 13 },
+    { value: "4:3", width: 17, height: 13 },
+  ],
+  portrait: [
+    { value: "9:16", width: 12, height: 21 },
+    { value: "2:3", width: 13, height: 19 },
+    { value: "3:4", width: 13, height: 17 },
+  ],
+  square: [{ value: "1:1", width: 15, height: 15 }],
+};
+const orientation = computed<Orientation>(() => {
+  const aspect = props.params.aspectRatio;
+  if (aspect === "1:1") return "square";
+  return aspect === "9:16" || aspect === "2:3" || aspect === "3:4"
+    ? "portrait"
+    : "landscape";
+});
+function pickOrientation(next: Orientation) {
+  if (orientation.value !== next)
+    emit("update", { aspectRatio: ratioOptions[next][0].value });
+}
 function value(event: Event) {
   return (event.target as HTMLInputElement).value;
 }
@@ -189,12 +207,39 @@ function value(event: Event) {
         <div class="field">
           <span class="field-label">{{ t("params.aspect") }}</span>
           <div
+            class="segmented orientation-options"
+            role="group"
+            :aria-label="t('params.orientation')"
+          >
+            <button
+              :class="{ selected: orientation === 'landscape' }"
+              :aria-pressed="orientation === 'landscape'"
+              @click="pickOrientation('landscape')"
+            >
+              {{ t("params.orientation.landscape") }}
+            </button>
+            <button
+              :class="{ selected: orientation === 'portrait' }"
+              :aria-pressed="orientation === 'portrait'"
+              @click="pickOrientation('portrait')"
+            >
+              {{ t("params.orientation.portrait") }}
+            </button>
+            <button
+              :class="{ selected: orientation === 'square' }"
+              :aria-pressed="orientation === 'square'"
+              @click="pickOrientation('square')"
+            >
+              1:1
+            </button>
+          </div>
+          <div
             class="aspect-options"
             role="group"
             :aria-label="t('params.aspect')"
           >
             <button
-              v-for="aspect in aspects"
+              v-for="aspect in ratioOptions[orientation]"
               :key="aspect.value"
               :class="{ selected: params.aspectRatio === aspect.value }"
               :aria-label="`${t(`params.aspect.${aspect.value}`)} ${aspect.value}`"
@@ -460,6 +505,15 @@ function value(event: Event) {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+.orientation-options {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.orientation-options button {
+  flex: 1;
+  font-size: 10px;
+  padding: 6px 0;
 }
 .aspect-options {
   display: flex;

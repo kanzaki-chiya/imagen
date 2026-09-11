@@ -46,8 +46,11 @@ export function dimensions(
   const sizes: Record<AspectRatio, [number, number]> = {
     "1:1": [1024, 1024],
     "3:2": [1536, 1024],
-    "2:3": [1024, 1536],
+    "4:3": [1280, 960],
     "16:9": [1536, 864],
+    "9:16": [864, 1536],
+    "2:3": [1024, 1536],
+    "3:4": [960, 1280],
   };
   const [width, height] = sizes[aspect];
   const scale = resolution === "4K" ? 4 : resolution === "2K" ? 2 : 1;
